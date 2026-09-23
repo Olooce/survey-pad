@@ -99,7 +99,6 @@ function buildRow(survey) {
 
   return el('tr', {}, [
     el('td', { 'data-label': 'Title' }, el('a', { class: 'row-title', href: `survey.html?id=${encodeURIComponent(survey.id)}` }, survey.title)),
-    el('td', { 'data-label': 'Slug' }, el('code', { class: 'slug-chip' }, survey.slug)),
     el('td', { 'data-label': 'Questions' }, String(Store.listQuestions(survey.id).length)),
     el('td', { 'data-label': 'Responses' }, String(Store.countResponses(survey.id))),
     el('td', { 'data-label': 'Updated' }, formatDate(survey.updatedAt)),

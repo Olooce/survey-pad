@@ -24,7 +24,7 @@ function write(key, value) {
 const nowIso = () => new Date().toISOString();
 
 export const Store = {
-  // ---- Surveys ----
+  // Surveys
   listSurveys() {
     return read(KEYS.surveys).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   },
@@ -69,7 +69,7 @@ export const Store = {
     write(KEYS.responses, read(KEYS.responses).filter((r) => r.surveyId !== id));
   },
 
-  // ---- Questions ----
+  // Questions
   listQuestions(surveyId) {
     return read(KEYS.questions)
       .filter((q) => q.surveyId === surveyId)
@@ -140,7 +140,7 @@ export const Store = {
     write(KEYS.questions, questions);
   },
 
-  // ---- Responses ----
+  // Responses
   listResponses(surveyId) {
     return read(KEYS.responses).filter((r) => r.surveyId === surveyId);
   },
