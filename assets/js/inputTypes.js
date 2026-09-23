@@ -180,12 +180,13 @@ export function renderQuestionField(question, { value, onChange = () => {}, disa
   const control = renderControl(question, value, onChange, disabled);
   const labelNode = isBareCheckbox
     ? null
-    : el('label', { class: 'field-label', for: fieldId(question) }, [
-      question.label,
-      question.required ? el('span', { class: 'field-required', 'aria-hidden': 'true' }, ' *') : null,
-    ]);
+    : el('label', { class: 'field-label', for: fieldId(question) }, question.label);
 
-  return el('div', { class: 'field', dataset: { questionId: question.id, type: question.type } }, [
+
+  const dataset = { questionId: question.id, type: question.type };
+  if (question.required) dataset.required = 'true';
+
+  return el('div', { class: 'field', dataset }, [
     labelNode,
     question.help ? el('p', { class: 'field-help' }, question.help) : null,
     control,
