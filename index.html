@@ -1,10 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Survey Pad</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Survey Pad</title>
+  <link rel="stylesheet" href="assets/css/index.css">
 </head>
-<body>
+<body data-page="surveys">
+  <header class="app-header">
+    <a class="app-brand" href="index.html">
+      <span class="brand-dot"></span>
+      Survey Pad
+    </a>
+    <button id="theme-btn" class="icon-button" type="button" aria-label="Theming">
+      <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-settings"></use></svg>
+    </button>
+  </header>
 
+  <main class="app-main">
+    <div class="page-header">
+      <div>
+        <h1>Surveys</h1>
+        <p class="page-subtitle">Create surveys, manage questions and share a link to collect responses.</p>
+      </div>
+      <button id="new-survey-btn" class="btn btn--primary" type="button">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-plus"></use></svg>
+        New survey
+      </button>
+    </div>
+
+    <div class="table-wrap" id="surveys-table-wrap">
+      <table class="data-table" id="surveys-table">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Slug</th>
+            <th>Questions</th>
+            <th>Responses</th>
+            <th>Updated</th>
+            <th aria-label="Actions"></th>
+          </tr>
+        </thead>
+        <tbody id="surveys-tbody"></tbody>
+      </table>
+    </div>
+    <p id="surveys-empty" class="empty-state" hidden>No surveys yet &mdash; create your first one to get started.</p>
+  </main>
+
+  <dialog id="survey-dialog" class="dialog dialog--sm">
+    <div class="dialog-header">
+      <h2 class="dialog-title" id="survey-dialog-title">New survey</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body">
+      <form id="survey-form" class="form" novalidate>
+        <input type="hidden" id="survey-id">
+        <div class="field">
+          <label class="field-label" for="survey-title">Title</label>
+          <input type="text" id="survey-title" name="title" required maxlength="120">
+        </div>
+        <div class="field">
+          <label class="field-label" for="survey-slug">Slug <span class="field-hint">(used in the survey link, auto-generated)</span></label>
+          <input type="text" id="survey-slug" name="slug" required maxlength="80" pattern="[a-z0-9-]+">
+          <p class="field-error" id="survey-slug-error" hidden>That slug is already in use.</p>
+        </div>
+        <div class="field">
+          <label class="field-label" for="survey-desc">Description</label>
+          <textarea id="survey-desc" name="description" rows="3" maxlength="500"></textarea>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="btn btn--ghost" data-dialog-close>Cancel</button>
+          <button type="submit" class="btn btn--primary" id="survey-submit-btn">Create survey</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="dialog dialog--sm">
+    <div class="dialog-header">
+      <h2 class="dialog-title" id="confirm-dialog-title">Are you sure?</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body">
+      <p id="confirm-dialog-message" class="dialog-message"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn--ghost" data-dialog-close>Cancel</button>
+        <button type="button" class="btn btn--danger" id="confirm-dialog-confirm">Delete</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="theme-dialog" class="dialog dialog--sm">
+    <div class="dialog-header">
+      <h2 class="dialog-title">Theming</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body">
+      <div class="form">
+        <div class="field">
+          <label class="field-label" for="theme-font">Font</label>
+          <select id="theme-font" class="field-control">
+            <option value="'Inter', sans-serif">Inter</option>
+            <option value="'Lexend Deca', sans-serif">Lexend Deca</option>
+            <option value="'Asap', sans-serif">Asap</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-font-size">Base font size</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-font-size" min="13" max="20" step="1">
+            <output id="theme-font-size-out">16px</output>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-primary">Accent color</label>
+          <input type="color" id="theme-primary">
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-radius">Corner radius</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-radius" min="0" max="24" step="1">
+            <output id="theme-radius-out">10px</output>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-spacing">Spacing density</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-spacing" min="0.8" max="1.4" step="0.05">
+            <output id="theme-spacing-out">1x</output>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" id="theme-reset" class="btn btn--ghost btn--sm">Reset to defaults</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast-host"></div>
+
+  <script type="module" src="assets/js/pages/surveys.js"></script>
 </body>
 </html>

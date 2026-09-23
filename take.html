@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Take survey &ndash; Survey Pad</title>
+  <link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body data-page="take" data-route="take">
+  <header class="app-header">
+    <a class="app-brand" href="index.html">
+      <span class="brand-dot"></span>
+      Survey Pad
+    </a>
+    <button id="theme-btn" class="icon-button" type="button" aria-label="Theming">
+      <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-settings"></use></svg>
+    </button>
+  </header>
+
+  <main class="app-main">
+    <div id="take-not-found" class="empty-state" hidden>
+      <p id="take-not-found-message">No survey found.</p>
+      <a class="btn btn--ghost" href="index.html">Back to surveys</a>
+    </div>
+
+    <div id="take-content" hidden>
+      <nav class="survey-take-nav" aria-label="Navigate between surveys">
+        <a data-nav="first" class="btn btn--ghost" href="#">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevrons-left"></use></svg>
+          First
+        </a>
+        <a data-nav="prev" class="btn btn--ghost" href="#">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevron-left"></use></svg>
+          Prev
+        </a>
+        <span class="survey-take-position" data-nav-position></span>
+        <a data-nav="next" class="btn btn--ghost" href="#">
+          Next
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevron-right"></use></svg>
+        </a>
+        <a data-nav="last" class="btn btn--ghost" href="#">
+          Last
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevrons-right"></use></svg>
+        </a>
+      </nav>
+
+      <article class="survey-take-card">
+        <header class="survey-take-details">
+          <h1 id="take-title"></h1>
+          <p id="take-desc" class="page-subtitle" hidden></p>
+        </header>
+
+        <form id="take-form" class="survey-form" novalidate>
+          <div id="take-fields"></div>
+          <p id="take-empty" class="empty-state" hidden>This survey has no questions yet.</p>
+          <button type="submit" class="btn btn--primary" id="take-submit-btn">Submit response</button>
+        </form>
+
+        <section id="success-panel" class="success-panel" hidden>
+          <h2>Thanks for your response!</h2>
+          <p>Your answers have been recorded on this device.</p>
+          <button type="button" class="btn btn--ghost" id="submit-another-btn">Submit another response</button>
+        </section>
+      </article>
+
+      <nav class="survey-take-nav" aria-label="Navigate between surveys">
+        <a data-nav="first" class="btn btn--ghost" href="#">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevrons-left"></use></svg>
+          First
+        </a>
+        <a data-nav="prev" class="btn btn--ghost" href="#">
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevron-left"></use></svg>
+          Prev
+        </a>
+        <span class="survey-take-position" data-nav-position></span>
+        <a data-nav="next" class="btn btn--ghost" href="#">
+          Next
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevron-right"></use></svg>
+        </a>
+        <a data-nav="last" class="btn btn--ghost" href="#">
+          Last
+          <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevrons-right"></use></svg>
+        </a>
+      </nav>
+    </div>
+  </main>
+
+  <dialog id="theme-dialog" class="dialog dialog--sm">
+    <div class="dialog-header">
+      <h2 class="dialog-title">Theming</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body">
+      <div class="form">
+        <div class="field">
+          <label class="field-label" for="theme-font">Font</label>
+          <select id="theme-font" class="field-control">
+            <option value="'Inter', sans-serif">Inter</option>
+            <option value="'Lexend Deca', sans-serif">Lexend Deca</option>
+            <option value="'Asap', sans-serif">Asap</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-font-size">Base font size</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-font-size" min="13" max="20" step="1">
+            <output id="theme-font-size-out">16px</output>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-primary">Accent color</label>
+          <input type="color" id="theme-primary">
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-radius">Corner radius</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-radius" min="0" max="24" step="1">
+            <output id="theme-radius-out">10px</output>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-spacing">Spacing density</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-spacing" min="0.8" max="1.4" step="0.05">
+            <output id="theme-spacing-out">1x</output>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" id="theme-reset" class="btn btn--ghost btn--sm">Reset to defaults</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast-host"></div>
+
+  <script type="module" src="assets/js/pages/surveyTake.js"></script>
+</body>
+</html>

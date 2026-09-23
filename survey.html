@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Survey &ndash; Survey Pad</title>
+  <link rel="stylesheet" href="assets/css/index.css">
+</head>
+<body data-page="survey-detail">
+  <header class="app-header">
+    <a class="app-brand" href="index.html">
+      <span class="brand-dot"></span>
+      Survey Pad
+    </a>
+    <button id="theme-btn" class="icon-button" type="button" aria-label="Theming">
+      <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-settings"></use></svg>
+    </button>
+  </header>
+
+  <main class="app-main">
+    <div id="survey-not-found" class="empty-state" hidden>
+      <p>Survey not found.</p>
+      <a class="btn btn--ghost" href="index.html">Back to surveys</a>
+    </div>
+
+    <div id="survey-detail-content" hidden>
+      <div class="page-header">
+        <div>
+          <a class="back-link" href="index.html">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-chevron-left"></use></svg>
+            All surveys
+          </a>
+          <h1 id="survey-title-heading"></h1>
+          <p id="survey-desc-text" class="page-subtitle" hidden></p>
+          <code class="slug-chip" id="survey-slug-chip"></code>
+        </div>
+        <div class="header-actions">
+          <button id="preview-btn" class="btn btn--ghost" type="button">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-eye"></use></svg>
+            Preview
+          </button>
+          <a id="open-live-link" class="btn btn--ghost" href="#">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-external"></use></svg>
+            Open live
+          </a>
+          <button id="add-question-btn" class="btn btn--primary" type="button">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-plus"></use></svg>
+            Add question
+          </button>
+        </div>
+      </div>
+
+      <div class="table-wrap" id="questions-table-wrap">
+        <table class="data-table" id="questions-table">
+          <thead>
+            <tr>
+              <th style="width:1%">#</th>
+              <th>Label</th>
+              <th>Type</th>
+              <th style="width:1%">Required</th>
+              <th aria-label="Actions"></th>
+            </tr>
+          </thead>
+          <tbody id="questions-tbody"></tbody>
+        </table>
+      </div>
+      <p id="questions-empty" class="empty-state" hidden>No questions yet &mdash; add your first question.</p>
+    </div>
+  </main>
+
+  <dialog id="question-dialog" class="dialog dialog--md">
+    <div class="dialog-header">
+      <h2 class="dialog-title" id="question-dialog-title">Add question</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body">
+      <!-- Type option values must stay in sync with TYPES in assets/js/inputTypes.js -->
+      <form id="question-form" class="form" novalidate>
+        <input type="hidden" id="q-id">
+        <div class="field">
+          <label class="field-label" for="q-type">Question type</label>
+          <select id="q-type" class="field-control">
+            <optgroup label="Text">
+              <option value="text">Short text</option>
+              <option value="textarea">Long text</option>
+              <option value="password">Password</option>
+              <option value="email">Email</option>
+              <option value="url">URL</option>
+              <option value="tel">Phone</option>
+              <option value="search">Search text</option>
+            </optgroup>
+            <optgroup label="Numeric">
+              <option value="number">Number</option>
+              <option value="range">Slider (range)</option>
+            </optgroup>
+            <optgroup label="Date &amp; time">
+              <option value="date">Date</option>
+              <option value="datetime-local">Date &amp; time</option>
+              <option value="time">Time</option>
+              <option value="month">Month</option>
+              <option value="week">Week</option>
+            </optgroup>
+            <optgroup label="Other">
+              <option value="color">Color</option>
+              <option value="file">File upload</option>
+            </optgroup>
+            <optgroup label="Choice">
+              <option value="select">Dropdown (single choice)</option>
+              <option value="select-multiple">Dropdown (multi choice)</option>
+              <option value="radio">Multiple choice (radio)</option>
+              <option value="checkbox-group">Checkboxes (multi choice)</option>
+              <option value="checkbox">Single checkbox (yes/no)</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="q-label">Question label</label>
+          <input type="text" id="q-label" required maxlength="200">
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="q-help">Help text</label>
+          <input type="text" id="q-help" maxlength="200">
+        </div>
+
+        <div class="field" data-group="placeholder" hidden>
+          <label class="field-label" for="q-placeholder">Placeholder</label>
+          <input type="text" id="q-placeholder" maxlength="120">
+        </div>
+
+        <div class="field" data-group="rows" hidden>
+          <label class="field-label" for="q-rows">Rows</label>
+          <input type="number" id="q-rows" min="2" max="12" value="4">
+        </div>
+
+        <div class="field-row" data-group="minmax" hidden>
+          <div class="field">
+            <label class="field-label" for="q-min">Min</label>
+            <input type="number" id="q-min">
+          </div>
+          <div class="field">
+            <label class="field-label" for="q-max">Max</label>
+            <input type="number" id="q-max">
+          </div>
+        </div>
+
+        <div class="field" data-group="step" hidden>
+          <label class="field-label" for="q-step">Step</label>
+          <input type="number" id="q-step">
+        </div>
+
+        <div class="field" data-group="accept" hidden>
+          <label class="field-label" for="q-accept">Accepted file types</label>
+          <input type="text" id="q-accept" placeholder=".pdf,.png,image/*">
+        </div>
+
+        <div class="field" data-group="pattern" hidden>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label" for="q-minlen">Min length</label>
+              <input type="number" id="q-minlen" min="0">
+            </div>
+            <div class="field">
+              <label class="field-label" for="q-maxlen">Max length</label>
+              <input type="number" id="q-maxlen" min="0">
+            </div>
+          </div>
+          <label class="field-label" for="q-pattern">Validation pattern (regex)</label>
+          <input type="text" id="q-pattern" placeholder="Optional regex, e.g. ^[0-9]+$">
+        </div>
+
+        <fieldset class="field" data-group="options" hidden>
+          <legend class="field-label">Options</legend>
+          <div id="options-editor" class="options-editor"></div>
+          <button type="button" id="add-option-btn" class="btn btn--ghost btn--sm">
+            <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-plus"></use></svg>
+            Add option
+          </button>
+        </fieldset>
+
+        <label class="choice-option">
+          <input type="checkbox" id="q-required">
+          <span>Required</span>
+        </label>
+
+        <div class="dialog-actions">
+          <button type="button" class="btn btn--ghost" data-dialog-close>Cancel</button>
+          <button type="submit" class="btn btn--primary" id="question-submit-btn">Add question</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
+
+  <dialog id="preview-dialog" class="dialog dialog--lg">
+    <div class="dialog-header">
+      <h2 class="dialog-title" id="preview-dialog-title">Preview</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body preview-body">
+      <p class="preview-note">This is how respondents will see the questions. Inputs are interactive but nothing is saved from the preview.</p>
+      <div id="preview-content" class="survey-form"></div>
+      <p id="preview-empty" class="empty-state" hidden>Add questions to see a preview.</p>
+    </div>
+  </dialog>
+
+  <dialog id="confirm-dialog" class="dialog dialog--sm">
+    <div class="dialog-header">
+      <h2 class="dialog-title" id="confirm-dialog-title">Are you sure?</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body">
+      <p id="confirm-dialog-message" class="dialog-message"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn--ghost" data-dialog-close>Cancel</button>
+        <button type="button" class="btn btn--danger" id="confirm-dialog-confirm">Delete</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="theme-dialog" class="dialog dialog--sm">
+    <div class="dialog-header">
+      <h2 class="dialog-title">Theming</h2>
+      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
+        <svg class="icon" aria-hidden="true"><use href="assets/icons/icons.svg#icon-close"></use></svg>
+      </button>
+    </div>
+    <div class="dialog-body">
+      <div class="form">
+        <div class="field">
+          <label class="field-label" for="theme-font">Font</label>
+          <select id="theme-font" class="field-control">
+            <option value="'Inter', sans-serif">Inter</option>
+            <option value="'Lexend Deca', sans-serif">Lexend Deca</option>
+            <option value="'Asap', sans-serif">Asap</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-font-size">Base font size</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-font-size" min="13" max="20" step="1">
+            <output id="theme-font-size-out">16px</output>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-primary">Accent color</label>
+          <input type="color" id="theme-primary">
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-radius">Corner radius</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-radius" min="0" max="24" step="1">
+            <output id="theme-radius-out">10px</output>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label" for="theme-spacing">Spacing density</label>
+          <div class="range-wrap">
+            <input type="range" id="theme-spacing" min="0.8" max="1.4" step="0.05">
+            <output id="theme-spacing-out">1x</output>
+          </div>
+        </div>
+        <div class="dialog-actions">
+          <button type="button" id="theme-reset" class="btn btn--ghost btn--sm">Reset to defaults</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast-host"></div>
+
+  <script type="module" src="assets/js/pages/surveyDetail.js"></script>
+</body>
+</html>
