@@ -18,7 +18,7 @@ if (!survey) {
 }
 
 function initSurveyDetail(survey) {
-  document.title = `${survey.title} – Survey Pad`;
+  document.title = `${survey.title} | Survey Pad`;
   document.getElementById('survey-title-heading').textContent = survey.title;
   const descEl = document.getElementById('survey-desc-text');
   if (survey.description) { descEl.textContent = survey.description; descEl.hidden = false; }
@@ -169,7 +169,7 @@ function initSurveyDetail(survey) {
       el('td', { 'data-label': '#' }, String(question.order + 1)),
       el('td', { 'data-label': 'Label' }, question.label),
       el('td', { 'data-label': 'Type' }, typeDef(question.type).label),
-      el('td', { 'data-label': 'Required' }, question.required ? 'Yes' : '—'),
+      el('td', { 'data-label': 'Required' }, question.required ? 'Yes' : '-'),
       el('td', { 'data-label': 'Actions' }, actions),
     ]);
   }
@@ -191,8 +191,8 @@ function initSurveyDetail(survey) {
   const previewContent = document.getElementById('preview-content');
   const previewEmpty = document.getElementById('preview-empty');
   document.getElementById('preview-btn').addEventListener('click', () => {
-    previewDialog.querySelector('#preview-dialog-title').textContent = `Preview – ${survey.title}`;
     const questions = Store.listQuestions(survey.id);
+    previewDialog.querySelector('#preview-dialog-title').textContent = `Preview: ${survey.title}`;
     previewContent.innerHTML = '';
     const answers = {};
     if (!questions.length) {

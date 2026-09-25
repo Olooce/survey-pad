@@ -41,7 +41,7 @@ function setNav(surveys, idx) {
 }
 
 function initTakePage(survey) {
-  document.title = `${survey.title} – Survey Pad`;
+  document.title = `${survey.title} | Survey Pad`;
   const idx = surveys.findIndex((s) => s.id === survey.id);
   setNav(surveys, idx);
 

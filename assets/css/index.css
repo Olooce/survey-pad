@@ -52,7 +52,8 @@ p { margin: 0 0 var(--sp-2); color: var(--color-text-muted); }
 a { color: var(--color-primary); }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
-.icon { width: 18px; height: 18px; stroke: currentColor; }
+.icon { width: 18px; height: 18px; flex: none; }
+.btn--primary .icon, .btn--danger .icon { filter: brightness(0) invert(1); }
 
 /* App shell */
 .app-header {
@@ -212,6 +213,10 @@ input[type="checkbox"], input[type="radio"] { width: auto; accent-color: var(--c
 .options-editor { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-2); }
 .option-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--sp-2); align-items: center; }
 
+/* Survey form  */
+.survey-form { display: flex; flex-direction: column; gap: var(--sp-5); }
+.survey-form .field { background: transparent; }
+
 /* Dialog */
 dialog.dialog {
   border: none;
@@ -225,6 +230,10 @@ dialog.dialog {
 dialog.dialog--sm { width: min(420px, calc(100vw - 32px)); }
 dialog.dialog--md { width: min(600px, calc(100vw - 32px)); }
 dialog.dialog--lg { width: min(760px, calc(100vw - 32px)); }
+dialog#preview-dialog { width: min(1100px, calc(100vw - 32px)); height: calc(100dvh - 32px); max-height: none; overflow: hidden; }
+dialog#preview-dialog[open] { display: flex; flex-direction: column; }
+#preview-dialog .dialog-header { flex: none; }
+#preview-dialog .dialog-body { flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; }
 dialog.dialog::backdrop { background: rgba(15, 16, 26, 0.45); }
 .dialog-header {
   display: flex; align-items: center; justify-content: space-between;
@@ -237,6 +246,13 @@ dialog.dialog::backdrop { background: rgba(15, 16, 26, 0.45); }
 .dialog-actions { display: flex; justify-content: flex-end; gap: var(--sp-2); padding-top: var(--sp-2); }
 .dialog-message { margin: 0 0 var(--sp-3); }
 .preview-note { font-size: 0.85em; margin-bottom: var(--sp-4); }
+.preview-body .survey-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: var(--sp-5) var(--sp-4);
+  align-items: start;
+}
+.preview-body .survey-form > * { min-width: 0; }
 
 /* Toast */
 #toast-host { position: fixed; bottom: var(--sp-5); right: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-2); z-index: 100; }
@@ -253,10 +269,6 @@ dialog.dialog::backdrop { background: rgba(15, 16, 26, 0.45); }
 }
 .toast--visible { opacity: 1; transform: translateY(0); }
 .toast--danger { background: var(--color-danger); }
-
-/* Survey form  */
-.survey-form { display: flex; flex-direction: column; gap: var(--sp-5); }
-.survey-form .field { background: transparent; }
 
 /* Take-survey page */
 .survey-take-nav {
