@@ -173,15 +173,10 @@ export function renderControl(question, value, onChange, disabled = false) {
   }
 }
 
-// Full field: label + control + help text, used by both the preview dialog
-// and the respondent-facing take page.
-export function renderQuestionField(question, { value, onChange = () => {}, disabled = false } = {}) {
-  const isBareCheckbox = question.type === 'checkbox';
-  const control = renderControl(question, value, onChange, disabled);
-  const labelNode = isBareCheckbox
-    ? null
-    : el('label', { class: 'field-label', for: fieldId(question) }, question.label);
 
+export function renderQuestionField(question, { value, onChange = () => {}, disabled = false } = {}) {
+  const control = renderControl(question, value, onChange, disabled);
+  const labelNode = el('label', { class: 'field-label', for: fieldId(question) }, question.label);
 
   const dataset = { questionId: question.id, type: question.type };
   if (question.required) dataset.required = 'true';

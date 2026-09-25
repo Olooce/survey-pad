@@ -23,9 +23,9 @@ export function uniqueSlug(base, isTaken) {
 }
 
 export function formatDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
+  if (Number.isNaN(d.getTime())) return '-';
   return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) +
     ' ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
@@ -61,13 +61,7 @@ export function el(tag, attrs = {}, children = []) {
 }
 
 export function icon(name, cls = 'icon') {
-  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-  svg.setAttribute('class', cls);
-  svg.setAttribute('aria-hidden', 'true');
-  const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-  use.setAttribute('href', `assets/icons/icons.svg#icon-${name}`);
-  svg.appendChild(use);
-  return svg;
+  return el('img', { class: cls, src: `assets/icons/png/${name}.png`, alt: '', width: 18, height: 18 });
 }
 
 export function debounce(fn, wait = 200) {
