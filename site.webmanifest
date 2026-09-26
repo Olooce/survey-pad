@@ -1,0 +1,13 @@
+{
+  "name": "Survey Pad",
+  "short_name": "Survey Pad",
+  "description": "Build surveys with every HTML input type, preview them and share a link. Everything is stored in your browser.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f6f7fb",
+  "theme_color": "#4f46e5",
+  "icons": [
+    { "src": "assets/favicon/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/favicon/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
