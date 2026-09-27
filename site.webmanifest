@@ -1,7 +1,7 @@
 {
   "name": "Survey Pad",
   "short_name": "Survey Pad",
-  "description": "Build surveys with every HTML input type, preview them and share a link. Everything is stored in your browser.",
+  "description": "Build surveys with every type, preview them and share a link. ",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#f6f7fb",
