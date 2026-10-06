@@ -1,171 +1,182 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Survey Pad | Build and share surveys</title>
-  <meta name="description" content="Create surveys, add questions of every type, preview them and share a link. ">
-  <meta name="theme-color" content="#4f46e5">
-  <link rel="icon" href="favicon.ico" sizes="48x48">
-  <link rel="icon" href="assets/favicon/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="assets/favicon/favicon-32.png" type="image/png" sizes="32x32">
-  <link rel="icon" href="assets/favicon/favicon-16.png" type="image/png" sizes="16x16">
-  <link rel="apple-touch-icon" href="assets/favicon/apple-touch-icon.png">
-  <link rel="manifest" href="site.webmanifest">
-  <meta property="og:type" content="website">
-  <meta property="og:site_name" content="Survey Pad">
-  <meta property="og:title" content="Survey Pad | Build and share surveys">
-  <meta property="og:description" content="Create surveys, add questions of  type, preview them and share a link. ">
-  <meta property="og:image" content="assets/og/og-image.png">
-  <meta property="og:image:type" content="image/png">
-  <meta property="og:image:width" content="1200">
-  <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Survey Pad logo and tagline on a purple gradient">
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Survey Pad | Build and share surveys">
-  <meta name="twitter:description" content="Create surveys, add questions of  type, preview them and share a link. ">
-  <meta name="twitter:image" content="assets/og/og-image.png">
-  <meta name="twitter:image:alt" content="Survey Pad logo and tagline on a purple gradient">
-  <link rel="stylesheet" href="assets/css/index.css">
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Survey Pad | Build and share surveys</title>
+    <meta content="Create surveys, add questions of every type, preview them and share a link. " name="description">
+    <meta content="#4f46e5" name="theme-color">
+    <link href="favicon.ico" rel="icon" sizes="48x48">
+    <link href="assets/favicon/favicon.svg" rel="icon" type="image/svg+xml">
+    <link href="assets/favicon/favicon-32.png" rel="icon" sizes="32x32" type="image/png">
+    <link href="assets/favicon/favicon-16.png" rel="icon" sizes="16x16" type="image/png">
+    <link href="assets/favicon/apple-touch-icon.png" rel="apple-touch-icon">
+    <link href="site.webmanifest" rel="manifest">
+    <meta content="website" property="og:type">
+    <meta content="Survey Pad" property="og:site_name">
+    <meta content="Survey Pad | Build and share surveys" property="og:title">
+    <meta content="Create surveys, add questions of  type, preview them and share a link. " property="og:description">
+    <meta content="assets/og/og-image.png" property="og:image">
+    <meta content="image/png" property="og:image:type">
+    <meta content="1200" property="og:image:width">
+    <meta content="630" property="og:image:height">
+    <meta content="Survey Pad logo and tagline on a purple gradient" property="og:image:alt">
+    <meta content="summary_large_image" name="twitter:card">
+    <meta content="Survey Pad | Build and share surveys" name="twitter:title">
+    <meta content="Create surveys, add questions of  type, preview them and share a link. " name="twitter:description">
+    <meta content="assets/og/og-image.png" name="twitter:image">
+    <meta content="Survey Pad logo and tagline on a purple gradient" name="twitter:image:alt">
+    <link href="assets/css/index.css" rel="stylesheet">
+
+    <script>
+        try {
+            var s = JSON.parse(localStorage.getItem('sp:theme'));
+            var t = s && s.theme;
+            if (!t) t = matchMedia('(prefers-contrast: more)').matches ? 'contrast'
+                : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.dataset.theme = t;
+        } catch (e) {
+        }
+    </script>
 </head>
 <body data-page="surveys">
-  <header class="app-header">
+<header class="app-header">
     <a class="app-brand" href="index.html">
-      <span class="brand-dot"></span>
-      Survey Pad
+        <span class="brand-dot"></span>
+        Survey Pad
     </a>
-    <button id="theme-btn" class="icon-button" type="button" aria-label="Theming">
-      <img class="icon" src="assets/icons/png/settings.png" alt="" width="18" height="18">
+    <button aria-label="Theming" class="icon-button" id="theme-btn" type="button">
+        <img alt="" class="icon" height="18" src="assets/icons/png/settings.png" width="18">
     </button>
-  </header>
+</header>
 
-  <main class="app-main">
+<main class="app-main">
     <div class="page-header">
-      <div>
-        <h1>Surveys</h1>
-        <p class="page-subtitle">Create surveys, manage questions and share a link to collect responses.</p>
-      </div>
-      <button id="new-survey-btn" class="btn btn--primary" type="button">
-        <img class="icon" src="assets/icons/png/plus.png" alt="" width="18" height="18">
-        New survey
-      </button>
+        <div>
+            <h1>Surveys</h1>
+            <p class="page-subtitle">Create surveys, manage questions and share a link to collect responses.</p>
+        </div>
+        <button class="btn btn--primary" id="new-survey-btn" type="button">
+            <img alt="" class="icon" height="18" src="assets/icons/png/plus.png" width="18">
+            New survey
+        </button>
     </div>
 
     <div class="table-wrap" id="surveys-table-wrap">
-      <table class="data-table" id="surveys-table">
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Questions</th>
-            <th>Responses</th>
-            <th>Updated</th>
-            <th aria-label="Actions"></th>
-          </tr>
-        </thead>
-        <tbody id="surveys-tbody"></tbody>
-      </table>
+        <table class="data-table" id="surveys-table">
+            <thead>
+            <tr>
+                <th>Title</th>
+                <th>Questions</th>
+                <th>Responses</th>
+                <th>Updated</th>
+                <th aria-label="Actions"></th>
+            </tr>
+            </thead>
+            <tbody id="surveys-tbody"></tbody>
+        </table>
     </div>
-    <p id="surveys-empty" class="empty-state" hidden>No surveys yet. Create your first one to get started.</p>
-  </main>
+    <p class="empty-state" hidden id="surveys-empty">No surveys yet. Create your first one to get started.</p>
+</main>
 
-  <dialog id="survey-dialog" class="dialog dialog--sm">
+<dialog class="dialog dialog--sm" id="survey-dialog">
     <div class="dialog-header">
-      <h2 class="dialog-title" id="survey-dialog-title">New survey</h2>
-      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
-        <img class="icon" src="assets/icons/png/close.png" alt="" width="18" height="18">
-      </button>
+        <h2 class="dialog-title" id="survey-dialog-title">New survey</h2>
+        <button aria-label="Close dialog" class="icon-button" data-dialog-close type="button">
+            <img alt="" class="icon" height="18" src="assets/icons/png/close.png" width="18">
+        </button>
     </div>
     <div class="dialog-body">
-      <form id="survey-form" class="form" novalidate>
-        <input type="hidden" id="survey-id">
-        <div class="field">
-          <label class="field-label" for="survey-title">Title</label>
-          <input type="text" id="survey-title" name="title" required maxlength="120">
-        </div>
-        <div class="field">
-          <label class="field-label" for="survey-slug">Slug <span class="field-hint">(used in the survey link, auto-generated)</span></label>
-          <input type="text" id="survey-slug" name="slug" required maxlength="80" pattern="[a-z0-9-]+">
-          <p class="field-error" id="survey-slug-error" hidden>That slug is already in use.</p>
-        </div>
-        <div class="field">
-          <label class="field-label" for="survey-desc">Description</label>
-          <textarea id="survey-desc" name="description" rows="3" maxlength="500"></textarea>
-        </div>
+        <form class="form" id="survey-form" novalidate>
+            <input id="survey-id" type="hidden">
+            <div class="field">
+                <label class="field-label" for="survey-title">Title</label>
+                <input id="survey-title" maxlength="120" name="title" required type="text">
+            </div>
+            <div class="field">
+                <label class="field-label" for="survey-slug">Slug <span class="field-hint">(used in the survey link, auto-generated)</span></label>
+                <input id="survey-slug" maxlength="80" name="slug" pattern="[a-z0-9-]+" required type="text">
+                <p class="field-error" hidden id="survey-slug-error">That slug is already in use.</p>
+            </div>
+            <div class="field">
+                <label class="field-label" for="survey-desc">Description</label>
+                <textarea id="survey-desc" maxlength="500" name="description" rows="3"></textarea>
+            </div>
+            <div class="dialog-actions">
+                <button class="btn btn--ghost" data-dialog-close type="button">Cancel</button>
+                <button class="btn btn--primary" id="survey-submit-btn" type="submit">Create survey</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<dialog class="dialog dialog--sm" id="confirm-dialog">
+    <div class="dialog-header">
+        <h2 class="dialog-title" id="confirm-dialog-title">Are you sure?</h2>
+        <button aria-label="Close dialog" class="icon-button" data-dialog-close type="button">
+            <img alt="" class="icon" height="18" src="assets/icons/png/close.png" width="18">
+        </button>
+    </div>
+    <div class="dialog-body">
+        <p class="dialog-message" id="confirm-dialog-message"></p>
         <div class="dialog-actions">
-          <button type="button" class="btn btn--ghost" data-dialog-close>Cancel</button>
-          <button type="submit" class="btn btn--primary" id="survey-submit-btn">Create survey</button>
+            <button class="btn btn--ghost" data-dialog-close type="button">Cancel</button>
+            <button class="btn btn--danger" id="confirm-dialog-confirm" type="button">Delete</button>
         </div>
-      </form>
     </div>
-  </dialog>
+</dialog>
 
-  <dialog id="confirm-dialog" class="dialog dialog--sm">
+<dialog class="dialog dialog--sm" id="theme-dialog">
     <div class="dialog-header">
-      <h2 class="dialog-title" id="confirm-dialog-title">Are you sure?</h2>
-      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
-        <img class="icon" src="assets/icons/png/close.png" alt="" width="18" height="18">
-      </button>
+        <h2 class="dialog-title">Settings</h2>
+        <button aria-label="Close dialog" class="icon-button" data-dialog-close type="button">
+            <img alt="" class="icon" height="18" src="assets/icons/png/close.png" width="18">
+        </button>
     </div>
     <div class="dialog-body">
-      <p id="confirm-dialog-message" class="dialog-message"></p>
-      <div class="dialog-actions">
-        <button type="button" class="btn btn--ghost" data-dialog-close>Cancel</button>
-        <button type="button" class="btn btn--danger" id="confirm-dialog-confirm">Delete</button>
-      </div>
+        <fieldset class="field">
+            <legend class="field-label">Theme</legend>
+            <div class="theme-options" id="theme-options"></div>
+        </fieldset>
+        <div class="form">
+            <div class="field">
+                <label class="field-label" for="theme-font">Font</label>
+                <select class="field-control" id="theme-font">
+                    <option value="'Inter', sans-serif">Inter</option>
+                    <option value="'Lexend Deca', sans-serif">Lexend Deca</option>
+                    <option value="'Asap', sans-serif">Asap</option>
+                </select>
+            </div>
+            <div class="field">
+                <label class="field-label" for="theme-font-size">Font size</label>
+                <div class="range-wrap">
+                    <input id="theme-font-size" max="20" min="13" step="1" type="range">
+                    <output id="theme-font-size-out">16px</output>
+                </div>
+            </div>
+            <div class="field">
+                <label class="field-label" for="theme-radius">Corner radius</label>
+                <div class="range-wrap">
+                    <input id="theme-radius" max="24" min="0" step="1" type="range">
+                    <output id="theme-radius-out">10px</output>
+                </div>
+            </div>
+            <div class="field">
+                <label class="field-label" for="theme-spacing">Spacing density</label>
+                <div class="range-wrap">
+                    <input id="theme-spacing" max="1.4" min="0.8" step="0.05" type="range">
+                    <output id="theme-spacing-out">1x</output>
+                </div>
+            </div>
+            <div class="dialog-actions">
+                <button class="btn btn--ghost btn--sm" id="theme-reset" type="button">Reset to defaults</button>
+            </div>
+        </div>
     </div>
-  </dialog>
+</dialog>
 
-  <dialog id="theme-dialog" class="dialog dialog--sm">
-    <div class="dialog-header">
-      <h2 class="dialog-title">Theming</h2>
-      <button type="button" class="icon-button" data-dialog-close aria-label="Close dialog">
-        <img class="icon" src="assets/icons/png/close.png" alt="" width="18" height="18">
-      </button>
-    </div>
-    <div class="dialog-body">
-      <div class="form">
-        <div class="field">
-          <label class="field-label" for="theme-font">Font</label>
-          <select id="theme-font" class="field-control">
-            <option value="'Inter', sans-serif">Inter</option>
-            <option value="'Lexend Deca', sans-serif">Lexend Deca</option>
-            <option value="'Asap', sans-serif">Asap</option>
-          </select>
-        </div>
-        <div class="field">
-          <label class="field-label" for="theme-font-size">Base font size</label>
-          <div class="range-wrap">
-            <input type="range" id="theme-font-size" min="13" max="20" step="1">
-            <output id="theme-font-size-out">16px</output>
-          </div>
-        </div>
-        <div class="field">
-          <label class="field-label" for="theme-primary">Accent color</label>
-          <input type="color" id="theme-primary">
-        </div>
-        <div class="field">
-          <label class="field-label" for="theme-radius">Corner radius</label>
-          <div class="range-wrap">
-            <input type="range" id="theme-radius" min="0" max="24" step="1">
-            <output id="theme-radius-out">10px</output>
-          </div>
-        </div>
-        <div class="field">
-          <label class="field-label" for="theme-spacing">Spacing density</label>
-          <div class="range-wrap">
-            <input type="range" id="theme-spacing" min="0.8" max="1.4" step="0.05">
-            <output id="theme-spacing-out">1x</output>
-          </div>
-        </div>
-        <div class="dialog-actions">
-          <button type="button" id="theme-reset" class="btn btn--ghost btn--sm">Reset to defaults</button>
-        </div>
-      </div>
-    </div>
-  </dialog>
+<div id="toast-host"></div>
 
-  <div id="toast-host"></div>
-
-  <script type="module" src="assets/js/pages/surveys.js"></script>
+<script src="assets/js/pages/surveys.js" type="module"></script>
 </body>
 </html>
