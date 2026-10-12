@@ -1,9 +1,10 @@
 import {initApp} from '../common.js';
 import {Store} from '../store.js';
 import {el, icon, uid} from '../utils.js';
-import {defaultOptions, renderQuestionField, typeDef} from '../inputTypes.js';
+import {defaultOptions, renderQuestionField, typeDef, TYPES} from '../inputTypes.js';
 import {confirmAction} from '../components/confirm.js';
 import {toast} from '../components/toast.js';
+import {createDataTable} from '../components/dataTable.js';
 
 initApp();
 
@@ -27,10 +28,6 @@ function initSurveyDetail(survey) {
     }
     document.getElementById('survey-slug-chip').textContent = survey.slug;
     document.getElementById('open-live-link').href = `take.html?slug=${encodeURIComponent(survey.slug)}`;
-
-    const tbody = document.getElementById('questions-tbody');
-    const tableWrap = document.getElementById('questions-table-wrap');
-    const emptyState = document.getElementById('questions-empty');
 
     const dialog = document.getElementById('question-dialog');
     const dialogTitle = document.getElementById('question-dialog-title');
@@ -175,53 +172,61 @@ function initSurveyDetail(survey) {
         renderRows();
     }
 
-    function buildRow(question) {
-        const actions = el('div', {class: 'row-actions'}, [
-            el('button', {
-                class: 'icon-button', type: 'button', title: 'Move up', onClick: () => {
-                    Store.moveQuestion(question.id, 'up');
-                    renderRows();
-                }
-            }, icon('chevron-up')),
-            el('button', {
-                class: 'icon-button', type: 'button', title: 'Move down', onClick: () => {
-                    Store.moveQuestion(question.id, 'down');
-                    renderRows();
-                }
-            }, icon('chevron-down')),
-            el('button', {
-                class: 'icon-button',
-                type: 'button',
-                title: 'Edit',
-                onClick: () => openQuestionDialog(question)
-            }, icon('edit')),
-            el('button', {
-                class: 'icon-button icon-button--danger',
-                type: 'button',
-                title: 'Delete',
-                onClick: () => removeQuestion(question)
-            }, icon('trash')),
-        ]);
-        return el('tr', {}, [
-            el('td', {'data-label': '#'}, String(question.order + 1)),
-            el('td', {'data-label': 'Label'}, question.label),
-            el('td', {'data-label': 'Type'}, typeDef(question.type).label),
-            el('td', {'data-label': 'Required'}, question.required ? 'Yes' : '-'),
-            el('td', {'data-label': 'Actions'}, actions),
-        ]);
+    // Reordering swaps neighbors in the survey's own order, so it only makes sense
+    // while the table shows that order (no sorting, search or filters).
+    const showingNaturalOrder = (table) => {
+        const s = table.getState();
+        return !s.sorts.length && !s.filters.length && !s.quick;
+    };
+
+    function move(question, direction) {
+        Store.moveQuestion(question.id, direction);
+        renderRows();
     }
 
+    const total = () => Store.listQuestions(survey.id).length;
+
+    const table = createDataTable({
+        container: '#questions-table',
+        label: 'Questions',
+        persistKey: 'sp:dt:questions',
+        data: Store.listQuestions(survey.id),
+        rowId: (q) => q.id,
+        rowLabel: (q) => q.label,
+        emptyMessage: 'No questions yet. Add your first question.',
+        columns: [
+            {key: 'position', label: '#', type: 'number', width: '1%', hideable: false, accessor: (q) => q.order + 1},
+            {key: 'label', label: 'Label', type: 'text', hideable: false, maxWidth: '48ch'},
+            {
+                key: 'type', label: 'Type', type: 'enum',
+                options: TYPES.map((t) => ({value: t.value, label: t.label})),
+            },
+            {key: 'required', label: 'Required', type: 'boolean', align: 'center', width: '1%'},
+            {key: 'help', label: 'Help text', type: 'text', hidden: true, maxWidth: '40ch'},
+            {key: 'placeholder', label: 'Placeholder', type: 'text', hidden: true, maxWidth: '30ch'},
+            {key: 'createdAt', label: 'Created', type: 'datetime', hidden: true},
+            {key: 'updatedAt', label: 'Updated', type: 'datetime', hidden: true},
+        ],
+        rowActions: (q, table) => {
+            const reorderable = showingNaturalOrder(table);
+            const hint = reorderable ? undefined : 'Clear sorting, search and filters to reorder';
+            return [
+                {label: 'Edit', onSelect: () => openQuestionDialog(q)},
+                {
+                    label: 'Move up', disabled: !reorderable || q.order === 0, title: hint,
+                    onSelect: () => move(q, 'up'),
+                },
+                {
+                    label: 'Move down', disabled: !reorderable || q.order >= total() - 1, title: hint,
+                    onSelect: () => move(q, 'down'),
+                },
+                {label: 'Delete', danger: true, separatorBefore: true, onSelect: () => removeQuestion(q)},
+            ];
+        },
+    });
+
     function renderRows() {
-        const questions = Store.listQuestions(survey.id);
-        tbody.innerHTML = '';
-        if (!questions.length) {
-            tableWrap.hidden = true;
-            emptyState.hidden = false;
-            return;
-        }
-        tableWrap.hidden = false;
-        emptyState.hidden = true;
-        questions.forEach((q) => tbody.append(buildRow(q)));
+        table.setRows(Store.listQuestions(survey.id));
     }
 
     const previewDialog = document.getElementById('preview-dialog');
@@ -248,6 +253,4 @@ function initSurveyDetail(survey) {
         }
         previewDialog.showModal();
     });
-
-    renderRows();
 }
