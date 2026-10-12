@@ -1,14 +1,11 @@
 import {initApp} from '../common.js';
 import {Store} from '../store.js';
-import {el, formatDate, icon, slugify} from '../utils.js';
+import {el, slugify} from '../utils.js';
 import {confirmAction} from '../components/confirm.js';
 import {toast} from '../components/toast.js';
+import {createDataTable} from '../components/dataTable.js';
 
 initApp();
-
-const tbody = document.getElementById('surveys-tbody');
-const tableWrap = document.getElementById('surveys-table-wrap');
-const emptyState = document.getElementById('surveys-empty');
 
 const dialog = document.getElementById('survey-dialog');
 const dialogTitle = document.getElementById('survey-dialog-title');
@@ -64,14 +61,16 @@ form.addEventListener('submit', (e) => {
         toast('Survey created.');
     }
     dialog.close('confirm');
-    renderRows();
+    reload();
 });
 
 document.getElementById('new-survey-btn').addEventListener('click', () => openSurveyDialog());
 
+const takeUrl = (survey) =>
+    `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}take.html?slug=${survey.slug}`;
+
 function copyLink(survey) {
-    const url = `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}take.html?slug=${survey.slug}`;
-    navigator.clipboard?.writeText(url).then(
+    navigator.clipboard?.writeText(takeUrl(survey)).then(
         () => toast('Survey link copied.'),
         () => toast('Could not copy link.', 'danger'),
     );
@@ -80,61 +79,49 @@ function copyLink(survey) {
 async function removeSurvey(survey) {
     const ok = await confirmAction({
         title: 'Delete survey',
-        message: `Delete "${survey.title}"? This also deletes its ${Store.listQuestions(survey.id).length} question(s) and any responses. This cannot be undone.`,
+        message: `Delete "${survey.title}"? This also deletes its ${survey.questionCount} question(s) and any responses. This cannot be undone.`,
         confirmLabel: 'Delete survey',
     });
     if (!ok) return;
     Store.deleteSurvey(survey.id);
     toast('Survey deleted.');
-    renderRows();
+    reload();
 }
 
-function buildRow(survey) {
-    const actions = el('div', {class: 'row-actions'}, [
-        el('button', {
-            class: 'icon-button',
-            type: 'button',
-            title: 'Edit',
-            onClick: () => openSurveyDialog(survey)
-        }, icon('edit')),
-        // el('a', { class: 'icon-button', title: 'Take survey', href: `take.html?slug=${encodeURIComponent(survey.slug)}` }, icon('eye')),
-        el('button', {
-            class: 'icon-button',
-            type: 'button',
-            title: 'Copy link',
-            onClick: () => copyLink(survey)
-        }, icon('link')),
-        el('button', {
-            class: 'icon-button icon-button--danger',
-            type: 'button',
-            title: 'Delete',
-            onClick: () => removeSurvey(survey)
-        }, icon('trash')),
-    ]);
+const loadRows = () => Store.listSurveys().map((s) => ({
+    ...s,
+    questionCount: Store.listQuestions(s.id).length,
+    responseCount: Store.countResponses(s.id),
+}));
 
-    return el('tr', {}, [
-        el('td', {'data-label': 'Title'}, el('a', {
-            class: 'row-title',
-            href: `survey.html?id=${encodeURIComponent(survey.id)}`
-        }, survey.title)),
-        el('td', {'data-label': 'Questions'}, String(Store.listQuestions(survey.id).length)),
-        el('td', {'data-label': 'Responses'}, String(Store.countResponses(survey.id))),
-        el('td', {'data-label': 'Updated'}, formatDate(survey.updatedAt)),
-        el('td', {'data-label': 'Actions'}, actions),
-    ]);
+const table = createDataTable({
+    container: '#surveys-table',
+    label: 'Surveys',
+    persistKey: 'sp:dt:surveys',
+    data: loadRows(),
+    rowId: (s) => s.id,
+    rowLabel: (s) => s.title,
+    emptyMessage: 'No surveys yet. Create your first one to get started.',
+    columns: [
+        {
+            key: 'title', label: 'Title', type: 'text', hideable: false, maxWidth: '40ch',
+            render: (s) => el('a', {class: 'row-title', href: `survey.html?id=${encodeURIComponent(s.id)}`}, s.title),
+        },
+        {key: 'questionCount', label: 'Questions', type: 'number', numberFormat: {maximumFractionDigits: 0}},
+        {key: 'responseCount', label: 'Responses', type: 'number', numberFormat: {maximumFractionDigits: 0}},
+        {key: 'slug', label: 'Slug', type: 'text', hidden: true, render: (s) => el('code', {}, s.slug)},
+        {key: 'description', label: 'Description', type: 'text', hidden: true, maxWidth: '40ch'},
+        {key: 'createdAt', label: 'Created', type: 'datetime', hidden: true},
+        {key: 'updatedAt', label: 'Updated', type: 'datetime'},
+    ],
+    rowActions: (s) => [
+        {label: 'Edit', onSelect: () => openSurveyDialog(s)},
+        {label: 'Open survey', href: `take.html?slug=${encodeURIComponent(s.slug)}`},
+        {label: 'Copy link', onSelect: () => copyLink(s)},
+        {label: 'Delete', danger: true, separatorBefore: true, onSelect: () => removeSurvey(s)},
+    ],
+});
+
+function reload() {
+    table.setRows(loadRows());
 }
-
-function renderRows() {
-    const surveys = Store.listSurveys();
-    tbody.innerHTML = '';
-    if (!surveys.length) {
-        tableWrap.hidden = true;
-        emptyState.hidden = false;
-        return;
-    }
-    tableWrap.hidden = false;
-    emptyState.hidden = true;
-    surveys.forEach((s) => tbody.append(buildRow(s)));
-}
-
-renderRows();
