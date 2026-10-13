@@ -3,7 +3,7 @@
  *
  *
  * const table = createDataTable({
- *   container: '#host',                 // element or selector
+ *   container: '#host',                 // element or selector (use a plain <div>, never a <table>)
  *   label: 'Surveys',                   // accessible name (caption + aria-labels)
  *   columns: [{ key, label, type, align, ... }],
  *   data: rowsArray | async (query) => ({ rows, total }),   // function = server mode
@@ -14,6 +14,8 @@
  *   sorts: [{ field, dir: 'asc' | 'desc' }],  // initial sort
  *   persistKey: 'sp:dt:surveys',        // localStorage key for view state (optional)
  *   emptyMessage: 'Nothing here yet.',
+ *   minHeight: '16rem',                 // CSS length; minimum height of the scroll region (optional)
+ *   maxHeight: '70vh',                  // CSS length; maximum height of the scroll region (optional)
  *   onStateChange: (state) => {},
  * });
  * table.setRows(rows); table.refresh(); table.getState(); table.setState(patch); table.destroy();
@@ -29,7 +31,7 @@
  *   numberFormat: Intl.NumberFormat options, dateFormat: Intl.DateTimeFormat options, locale,
  *   trueLabel, falseLabel, step (number filter inputs),
  *   operators: ['contains', ...],             (restrict the relationships offered)
- *   width, maxWidth (CSS lengths; maxWidth truncates with ellipsis), wrap: true,
+ *   width, minWidth, maxWidth (CSS lengths; maxWidth truncates), wrap: true,
  *   sortable (true), filterable (true), hideable (true), hidden (false)
  * }
  */
@@ -329,7 +331,7 @@ export function createDataTable(options) {
     const serverMode = typeof opts.data === 'function';
     const label = opts.label || 'Data table';
 
-    /* ---- columns ---- */
+    /*  columns  */
     const columns = (opts.columns || []).map((c) => {
         if (!c.key) throw new Error('createDataTable: every column needs a key');
         const type = TYPES.includes(c.type) ? c.type : 'text';
@@ -350,7 +352,7 @@ export function createDataTable(options) {
     const sortCols = columns.filter((c) => c.sortable);
     const hasActions = typeof opts.rowActions === 'function';
 
-    /* ---- formatting ---- */
+    /*  formatting  */
     function displayText(col, raw, row) {
         if (col.format) return String(col.format(raw, row) ?? '');
         if (isBlank(raw)) return '';
@@ -378,7 +380,7 @@ export function createDataTable(options) {
         }
     }
 
-    /* ---- state ---- */
+    /*  state  */
     const state = {
         page: 1,
         pageSize: opts.pageSizes.includes(opts.pageSize) ? opts.pageSize : opts.pageSizes[0],
@@ -456,7 +458,7 @@ export function createDataTable(options) {
 
     const visibleCols = () => columns.filter((c) => !state.hidden.has(c.key));
 
-    /* ---- data pipeline ---- */
+    /*  data pipeline  */
     function testFor(cond) {
         if (cond.field === '') {
             const o = findOp(ANY, cond.op);
@@ -567,7 +569,7 @@ export function createDataTable(options) {
         opts.onStateChange?.(snapshot());
     }
 
-    /* ---- DOM skeleton ---- */
+    /*  DOM skeleton  */
     const root = el('section', {class: 'dt', id: uid, 'aria-label': label});
 
     const quickForm = el('form', {
@@ -610,6 +612,7 @@ export function createDataTable(options) {
         'aria-label': `${label} table`
     }, table);
     if (opts.maxHeight) scroll.style.setProperty('--dt-max-height', opts.maxHeight);
+    if (opts.minHeight) scroll.style.setProperty('--dt-min-height', opts.minHeight);
 
     // footer
     const sizeSelect = select(opts.pageSizes.map((n) => [String(n), String(n)]), String(state.pageSize), 'Rows per page', (v) => {
@@ -660,7 +663,7 @@ export function createDataTable(options) {
     root.append(toolbar, chips, scroll, footer, menu);
     host.replaceChildren(root);
 
-    /* ---- quick search ---- */
+    /*  quick search  */
     function drawQuick() {
         quickForm.hidden = !quickDraft;
         if (!quickDraft) return;
@@ -681,7 +684,7 @@ export function createDataTable(options) {
         commit();
     });
 
-    /* ---- header / body ---- */
+    /*  header / body  */
     function renderHead() {
         const cells = visibleCols().map((col) => {
             const idx = state.sorts.findIndex((s) => s.field === col.key);
@@ -689,7 +692,11 @@ export function createDataTable(options) {
             const th = el('th', {
                 scope: 'col', 'data-align': col.align,
                 'aria-sort': dir ? (dir === 'asc' ? 'ascending' : 'descending') : undefined,
-                style: [col.width && `width:${col.width}`, col.maxWidth && `max-width:${col.maxWidth}`].filter(Boolean).join(';') || undefined,
+                style: [
+                    col.width && `width:${col.width}`,
+                    col.minWidth && `min-width:${col.minWidth}`,
+                    col.maxWidth && `max-width:${col.maxWidth}`,
+                ].filter(Boolean).join(';') || undefined,
             });
             if (!col.sortable) {
                 th.append(col.label);
@@ -768,6 +775,7 @@ export function createDataTable(options) {
             const cells = cols.map((col) => {
                 const td = el('td', {'data-align': col.align, 'data-label': col.label}, cellContent(col, row));
                 if (col.wrap) td.classList.add('dt-wrap');
+                if (col.minWidth) td.style.minWidth = col.minWidth;
                 if (col.maxWidth) {
                     td.classList.add('dt-clip');
                     td.style.maxWidth = col.maxWidth;
@@ -799,7 +807,7 @@ export function createDataTable(options) {
         root.classList.toggle('dt--loading', view.loading);
     }
 
-    /* ---- chips ---- */
+    /*  chips  */
     function describe(cond) {
         const col = cond.field === '' ? ANY : colMap.get(cond.field);
         const o = findOp(col, cond.op);
@@ -865,7 +873,7 @@ export function createDataTable(options) {
         commit();
     }
 
-    /* ---- footer + toolbar badges ---- */
+    /*  footer + toolbar badges  */
     function renderFooter() {
         const {total} = view;
         const start = total ? (state.page - 1) * state.pageSize + 1 : 0;
@@ -903,7 +911,7 @@ export function createDataTable(options) {
         renderBadges();
     }
 
-    /* ---- panels ---- */
+    /*  panels  */
     function openFilters() {
         const draft = state.filters.map((f) => ({...f}));
         let match = state.match;
@@ -1083,7 +1091,7 @@ export function createDataTable(options) {
         });
     }
 
-    /* ---- row action menu ---- */
+    /*  row action menu  */
     function buildMenuItem(action, row) {
         const cls = `dt-menu__item${action.danger ? ' dt-menu__item--danger' : ''}`;
         const common = {class: cls, role: 'menuitem', tabindex: '-1', title: action.title};
@@ -1167,7 +1175,7 @@ export function createDataTable(options) {
         }
     });
 
-    /* ---- public API ---- */
+    /*  public API  */
     const api = {
         element: root,
         setRows(rows) {

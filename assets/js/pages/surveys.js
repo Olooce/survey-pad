@@ -98,21 +98,35 @@ const table = createDataTable({
     container: '#surveys-table',
     label: 'Surveys',
     persistKey: 'sp:dt:surveys',
+    minHeight: '16rem',
     data: loadRows(),
     rowId: (s) => s.id,
     rowLabel: (s) => s.title,
     emptyMessage: 'No surveys yet. Create your first one to get started.',
     columns: [
         {
-            key: 'title', label: 'Title', type: 'text', hideable: false, maxWidth: '40ch',
+            key: 'title', label: 'Title', type: 'text', hideable: false, minWidth: '14rem', maxWidth: '40ch',
             render: (s) => el('a', {class: 'row-title', href: `survey.html?id=${encodeURIComponent(s.id)}`}, s.title),
         },
-        {key: 'questionCount', label: 'Questions', type: 'number', numberFormat: {maximumFractionDigits: 0}},
-        {key: 'responseCount', label: 'Responses', type: 'number', numberFormat: {maximumFractionDigits: 0}},
-        {key: 'slug', label: 'Slug', type: 'text', hidden: true, render: (s) => el('code', {}, s.slug)},
-        {key: 'description', label: 'Description', type: 'text', hidden: true, maxWidth: '40ch'},
-        {key: 'createdAt', label: 'Created', type: 'datetime', hidden: true},
-        {key: 'updatedAt', label: 'Updated', type: 'datetime'},
+        {
+            key: 'questionCount', label: 'Questions', type: 'number', minWidth: '6rem',
+            numberFormat: {maximumFractionDigits: 0},
+        },
+        {
+            key: 'responseCount', label: 'Responses', type: 'number', minWidth: '6rem',
+            numberFormat: {maximumFractionDigits: 0},
+        },
+        {
+            key: 'slug',
+            label: 'Slug',
+            type: 'text',
+            hidden: true,
+            minWidth: '10rem',
+            render: (s) => el('code', {}, s.slug)
+        },
+        {key: 'description', label: 'Description', type: 'text', hidden: true, minWidth: '12rem', maxWidth: '40ch'},
+        {key: 'createdAt', label: 'Created', type: 'datetime', hidden: true, minWidth: '10rem'},
+        {key: 'updatedAt', label: 'Updated', type: 'datetime', minWidth: '10rem'},
     ],
     rowActions: (s) => [
         {label: 'Edit', onSelect: () => openSurveyDialog(s)},
