@@ -8,7 +8,7 @@
     border: var(--border-width) solid var(--color-border);
     border-radius: var(--radius-base);
     box-shadow: var(--shadow-sm);
-    overflow: hidden; /* clips the table's square corners to the radius */
+    overflow: hidden;
 }
 
 .dt input, .dt select {
@@ -85,6 +85,23 @@
     text-align: center;
 }
 
+/* Notice banner (invalid saved view, rejected setState) */
+.dt-notice {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--sp-2);
+    padding: var(--sp-2) var(--sp-3);
+    border-bottom: var(--border-width) solid var(--color-danger-border);
+    background: var(--color-danger-bg);
+    color: var(--color-danger);
+}
+
+.dt-notice ul {
+    margin: var(--sp-1) 0 0;
+    padding-inline-start: 1.2em;
+}
+
 /* Condition rows (quick search + filter dialog) */
 .dt-cond {
     display: flex;
@@ -122,8 +139,13 @@
     color: var(--color-text-muted);
 }
 
-.dt-cond--invalid :is(input, select) {
+.dt .dt-cond [aria-invalid="true"] {
     border-color: var(--color-danger);
+}
+
+.dt-cond-error {
+    flex: 1 0 100%;
+    margin: 0;
 }
 
 .dt-cond--sort .dt-rank {
@@ -362,6 +384,15 @@ th[aria-sort="descending"] .dt-caret--down {
     width: 4.5em;
     text-align: center;
     font-variant-numeric: tabular-nums;
+}
+
+.dt .dt-page-input[aria-invalid="true"] {
+    border-color: var(--color-danger);
+}
+
+.dt-page-error {
+    flex: 1 0 100%;
+    text-align: end;
 }
 
 /* Row action menu */
