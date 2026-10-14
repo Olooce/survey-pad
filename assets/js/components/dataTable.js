@@ -3,7 +3,7 @@
  *
  *
  * const table = createDataTable({
- *   container: '#host',                 // element or selector (use a plain <div>, never a <table>)
+ *   container: '#host',                 // element or selector (plain <div>)
  *   label: 'Surveys',                   // accessible name (caption + aria-labels)
  *   columns: [{ key, label, type, align, ... }],
  *   data: rowsArray | async (query) => ({ rows, total }),   // function = server mode
@@ -11,14 +11,16 @@
  *   rowLabel: (row) => row.title,       // used in "Actions for ..." label
  *   rowActions: (row, table) => [{ label, onSelect(row) | href, danger, disabled, title, separatorBefore }],
  *   pageSizes: [10, 25, 50, 100], pageSize: 25,
- *   sorts: [{ field, dir: 'asc' | 'desc' }],  // initial sort
+ *   sorts: [{ field, dir: 'asc' | 'desc' }],  // initial sort (invalid config throws)
  *   persistKey: 'sp:dt:surveys',        // localStorage key for view state (optional)
  *   emptyMessage: 'Nothing here yet.',
  *   minHeight: '16rem',                 // CSS length; minimum height of the scroll region (optional)
  *   maxHeight: '70vh',                  // CSS length; maximum height of the scroll region (optional)
  *   onStateChange: (state) => {},
  * });
- * table.setRows(rows); table.refresh(); table.getState(); table.setState(patch); table.destroy();
+ * table.setRows(rows); table.refresh(); table.getState(); table.destroy();
+ * table.setState(patch) -> { ok, errors }   // atomic: if anything is invalid nothing is applied and the
+ *                                           // errors are shown to the user and returned
  *
  * Column: {
  *   key (required, unique), label,
@@ -55,6 +57,14 @@ const ICONS = {
     last: '<path d="m6 17 5-5-5-5M13 17l5-5-5-5"/>',
     up: '<path d="m18 15-6-6-6 6"/>',
     down: '<path d="m6 9 6 6 6-6"/>',
+};
+
+const MAX_TEXT = 200;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/;
+const BOUNDS = {
+    date: {min: '1000-01-01', max: '9999-12-31'},
+    datetime: {min: '1000-01-01T00:00', max: '9999-12-31T23:59'},
 };
 
 function icon(name, size = 16) {
@@ -175,6 +185,72 @@ const findOp = (col, id) => {
     return ops.find((o) => o.id === id) || ops[0];
 };
 
+/*  validation */
+
+/** Text is trimmed; everything else is passed through as a string. */
+const clean = (col, raw) => {
+    const s = String(raw ?? '');
+    return col.type === 'text' ? s.trim() : s;
+};
+
+/** Strict calendar check: rejects Feb 30 and years < 100 (which `new Date(y, m, d)` remaps to 19xx). */
+function validDate(s) {
+    if (!DATE_RE.test(s)) return false;
+    const d = toDate(s);
+    return !!d && dateKey(d) === s;
+}
+
+function validateValue(col, raw) {
+    const v = clean(col, raw);
+    if (v === '') return 'Enter a value.';
+    switch (col.type) {
+        case 'number':
+            return Number.isFinite(Number(v)) ? null : 'Enter a valid number.';
+        case 'date':
+            return validDate(v) ? null : 'Enter a valid date.';
+        case 'datetime':
+            return DATETIME_RE.test(v) && validDate(v.slice(0, 10)) && !Number.isNaN(new Date(v).getTime())
+                ? null : 'Enter a valid date and time.';
+        case 'enum':
+            return col.options.some((o) => String(o.value) === v) ? null : 'Choose one of the listed options.';
+        default:
+            return v.length > MAX_TEXT ? `Use at most ${MAX_TEXT} characters.` : null;
+    }
+}
+
+/** Returns an error message or null. `cols` is the set of columns this condition is allowed to target. */
+function validateCondition(cond, cols) {
+    if (!cond || typeof cond !== 'object') return 'Invalid condition.';
+    const col = cols.find((c) => c.key === cond.field);
+    if (!col) return 'Choose a column.';
+    const o = operatorsFor(col).find((x) => x.id === cond.op);
+    if (!o) return 'Choose a valid relationship.';
+    if (o.arity >= 1) {
+        const err = validateValue(col, cond.value);
+        if (err) return o.arity === 2 ? `From: ${err}` : err;
+    }
+    if (o.arity === 2) {
+        const err = validateValue(col, cond.value2);
+        if (err) return `To: ${err}`;
+        const a = normalize(col.type, clean(col, cond.value));
+        const b = normalize(col.type, clean(col, cond.value2));
+        if (compareValues(a, b) > 0) return 'From must not be after To.';
+    }
+    return null;
+}
+
+/** Call only on validated conditions. Trims text and drops values the operator does not use. */
+function sanitizeCondition(cond, cols) {
+    const col = cols.find((c) => c.key === cond.field);
+    const o = operatorsFor(col).find((x) => x.id === cond.op);
+    return {
+        field: cond.field,
+        op: o.id,
+        value: o.arity >= 1 ? clean(col, cond.value) : '',
+        value2: o.arity === 2 ? clean(col, cond.value2) : '',
+    };
+}
+
 /* builders */
 
 function select(options, value, label, onChange) {
@@ -209,6 +285,8 @@ function valueInput(col, value, onInput, label) {
             type, 'aria-label': label, autocomplete: 'off',
             step: col.type === 'number' ? (col.step ?? 'any') : undefined,
             placeholder: col.type === 'text' ? 'Value' : undefined,
+            maxlength: col.type === 'text' ? MAX_TEXT : undefined,
+            ...BOUNDS[col.type],
         });
     }
     node.value = value ?? '';
@@ -236,15 +314,44 @@ function valueControls(col, opDef, cond, touch) {
 /**
  * Editable "column / relationship / value" row. Mutates `cond` in place.
  * Relationship list and value inputs are rebuilt whenever the column (and data type) changes.
+ * The returned row exposes `validate()` (shows the error, returns true/false) and `hasBadInput()`.
  */
-function buildCondition(cond, cols, {onRemove, label = 'Condition'} = {}) {
+function buildCondition(cond, cols, {onRemove, onTouch, label = 'Condition'} = {}) {
     const byKey = (k) => cols.find((c) => c.key === k) || cols[0];
     const row = el('div', {class: 'dt-cond', role: 'group', 'aria-label': label});
     const opSlot = el('span', {class: 'dt-slot'});
     const valSlot = el('span', {class: 'dt-slot dt-slot--values'});
+    const errId = `dt-err-${++instanceSeq}`;
+    const errEl = el('p', {class: 'field-error dt-cond-error', id: errId, hidden: true});
+
+    const setError = (message) => {
+        row.classList.toggle('dt-cond--invalid', !!message);
+        errEl.textContent = message || '';
+        errEl.hidden = !message;
+        valSlot.querySelectorAll('input, select').forEach((n) => {
+            if (message) {
+                n.setAttribute('aria-invalid', 'true');
+                n.setAttribute('aria-describedby', errId);
+            } else {
+                n.removeAttribute('aria-invalid');
+                n.removeAttribute('aria-describedby');
+            }
+        });
+    };
     const touch = () => {
-        delete cond._pristine;
-        row.classList.remove('dt-cond--invalid');
+        setError(null);
+        onTouch?.();
+    };
+
+    // number/date inputs report unparseable text as value === '' + validity.badInput
+    row.hasBadInput = () => [...valSlot.querySelectorAll('input')].some((n) => n.validity.badInput);
+    row.validate = () => {
+        const col = byKey(cond.field);
+        const message = row.hasBadInput()
+            ? `Enter a valid ${col.type === 'number' ? 'number' : 'date or time'}.`
+            : validateCondition(cond, cols);
+        setError(message);
+        return !message;
     };
 
     const drawValues = () => {
@@ -263,7 +370,6 @@ function buildCondition(cond, cols, {onRemove, label = 'Condition'} = {}) {
             drawValues();
         }));
     };
-
     const colSelect = select(cols.map((c) => [c.key, c.label]), cond.field, 'Column', (v) => {
         touch();
         cond.field = v;
@@ -275,6 +381,7 @@ function buildCondition(cond, cols, {onRemove, label = 'Condition'} = {}) {
 
     row.append(colSelect, opSlot, valSlot);
     if (onRemove) row.append(iconButton('trash', `Remove ${label.toLowerCase()}`, onRemove, 'dt-icon-btn--danger'));
+    row.append(errEl);
     drawOps();
     drawValues();
     return row;
@@ -327,14 +434,30 @@ export function createDataTable(options) {
     const host = typeof opts.container === 'string' ? document.querySelector(opts.container) : opts.container;
     if (!host) throw new Error('createDataTable: container not found');
 
-    const uid = `dt${++instanceSeq}`;
-    const serverMode = typeof opts.data === 'function';
-    const label = opts.label || 'Data table';
+    if (opts.data != null && !Array.isArray(opts.data) && typeof opts.data !== 'function') {
+        throw new Error('createDataTable: data must be an array or a function');
+    }
+    if (!Array.isArray(opts.pageSizes) || !opts.pageSizes.length
+        || !opts.pageSizes.every((n) => Number.isInteger(n) && n > 0)) {
+        throw new Error('createDataTable: pageSizes must be a non-empty array of positive integers');
+    }
 
     /*  columns  */
     const columns = (opts.columns || []).map((c) => {
         if (!c.key) throw new Error('createDataTable: every column needs a key');
-        const type = TYPES.includes(c.type) ? c.type : 'text';
+        if (c.type !== undefined && !TYPES.includes(c.type)) {
+            throw new Error(`createDataTable: column "${c.key}" has unknown type "${c.type}"`);
+        }
+        const type = c.type || 'text';
+        if (c.operators) {
+            const known = OPERATORS[type].map((o) => o.id);
+            if (!c.operators.length || c.operators.some((id) => !known.includes(id))) {
+                throw new Error(`createDataTable: column "${c.key}" has invalid operators for type "${type}"`);
+            }
+        }
+        if (type === 'enum' && c.filterable !== false && !c.options?.length) {
+            throw new Error(`createDataTable: enum column "${c.key}" needs options`);
+        }
         return {
             sortable: true, filterable: true, hideable: true, hidden: false, label: c.key,
             accessor: (row) => row[c.key],
@@ -344,6 +467,12 @@ export function createDataTable(options) {
             options: (c.options || []).map((o) => (typeof o === 'object' ? o : {value: o, label: String(o)})),
         };
     });
+    if (!columns.length) throw new Error('createDataTable: at least one column is required');
+
+    const uid = `dt${++instanceSeq}`;
+    const serverMode = typeof opts.data === 'function';
+    const label = opts.label || 'Data table';
+
     const colMap = new Map(columns.map((c) => [c.key, c]));
     if (colMap.size !== columns.length) throw new Error('createDataTable: duplicate column keys');
     const filterCols = columns.filter((c) => c.filterable);
@@ -380,11 +509,52 @@ export function createDataTable(options) {
         }
     }
 
+    /*  validators (return a list of messages; empty = valid)  */
+    function validateSorts(list) {
+        if (!Array.isArray(list)) return ['Sorts must be a list.'];
+        const errors = [];
+        const seen = new Set();
+        list.forEach((s, i) => {
+            const col = colMap.get(s?.field);
+            if (!col) errors.push(`Sort ${i + 1}: unknown column "${s?.field}".`);
+            else if (!col.sortable) errors.push(`Sort ${i + 1}: "${col.label}" cannot be sorted.`);
+            else if (s.dir !== 'asc' && s.dir !== 'desc') errors.push(`Sort ${i + 1}: order must be "asc" or "desc".`);
+            else if (seen.has(s.field)) errors.push(`Sort ${i + 1}: "${col.label}" is used more than once.`);
+            else seen.add(s.field);
+        });
+        return errors;
+    }
+
+    function validateHidden(keys) {
+        if (!Array.isArray(keys)) return ['Hidden columns must be a list.'];
+        const errors = [];
+        keys.forEach((k) => {
+            const col = colMap.get(k);
+            if (!col) errors.push(`Unknown column "${k}".`);
+            else if (!col.hideable) errors.push(`"${col.label}" cannot be hidden.`);
+        });
+        if (!errors.length && columns.every((c) => keys.includes(c.key))) {
+            errors.push('At least one column must stay visible.');
+        }
+        return errors;
+    }
+
+    function validateFilters(list) {
+        if (!Array.isArray(list)) return ['Filters must be a list.'];
+        return list.flatMap((f, i) => {
+            const err = validateCondition(f, filterCols);
+            return err ? [`Filter ${i + 1}: ${err}`] : [];
+        });
+    }
+
+    const sortErrors = validateSorts(opts.sorts || []);
+    if (sortErrors.length) throw new Error(`createDataTable: invalid sorts: ${sortErrors.join(' ')}`);
+
     /*  state  */
     const state = {
         page: 1,
         pageSize: opts.pageSizes.includes(opts.pageSize) ? opts.pageSize : opts.pageSizes[0],
-        sorts: (opts.sorts || []).filter((s) => colMap.get(s.field)?.sortable),
+        sorts: (opts.sorts || []).map(({field, dir}) => ({field, dir})),
         filters: [],
         match: 'all',
         quick: null,
@@ -393,6 +563,7 @@ export function createDataTable(options) {
     const view = {rows: [], total: 0, loading: false, error: null};
     let source = Array.isArray(opts.data) ? opts.data : [];
     let quickDraft = freshQuick();
+    let quickRow = null;
     let abortCtl = null;
     let reqSeq = 0;
 
@@ -404,14 +575,8 @@ export function createDataTable(options) {
         return quickCols.length ? newCondition(quickCols[0]) : null;
     }
 
-    const cleanCondition = ({field, op: o, value, value2}) => ({field, op: o, value, value2});
-
-    function isComplete(cond) {
-        const col = cond.field === '' ? ANY : colMap.get(cond.field);
-        if (!col) return false;
-        const o = findOp(col, cond.op);
-        return (o.arity < 1 || !isBlank(cond.value)) && (o.arity < 2 || !isBlank(cond.value2));
-    }
+    // quickCols is a superset of filterCols; call only after validation
+    const cleanCondition = (cond) => sanitizeCondition(cond, quickCols);
 
     function restore() {
         if (!opts.persistKey) return;
@@ -419,21 +584,46 @@ export function createDataTable(options) {
         try {
             saved = JSON.parse(localStorage.getItem(opts.persistKey));
         } catch {
+            showNotice('Saved view settings could not be read and were ignored.', []);
             return;
         }
-        if (!saved || typeof saved !== 'object') return;
-        if (opts.pageSizes.includes(saved.pageSize)) state.pageSize = saved.pageSize;
-        if (Array.isArray(saved.sorts)) {
-            state.sorts = saved.sorts.filter((s) => colMap.get(s?.field)?.sortable && (s.dir === 'asc' || s.dir === 'desc'));
+        if (saved == null) return;
+        if (typeof saved !== 'object') {
+            showNotice('Saved view settings are malformed and were ignored.', []);
+            return;
         }
-        if (Array.isArray(saved.filters)) {
-            state.filters = saved.filters.filter((f) => f && colMap.get(f.field)?.filterable && isComplete(f)).map(cleanCondition);
+
+        const errors = [];
+        if ('pageSize' in saved) {
+            if (opts.pageSizes.includes(saved.pageSize)) state.pageSize = saved.pageSize;
+            else errors.push(`Page size ${saved.pageSize} is no longer available.`);
         }
-        if (saved.match === 'any') state.match = 'any';
-        if (Array.isArray(saved.hidden)) {
-            const hidden = new Set(saved.hidden.filter((k) => colMap.get(k)?.hideable));
-            if (columns.some((c) => !hidden.has(c.key))) state.hidden = hidden;
+        if ('sorts' in saved) {
+            const e = validateSorts(saved.sorts);
+            if (e.length) errors.push(...e);
+            else state.sorts = saved.sorts.map(({field, dir}) => ({field, dir}));
         }
+        if ('filters' in saved) {
+            if (!Array.isArray(saved.filters)) {
+                errors.push('Filters must be a list.');
+            } else {
+                saved.filters.forEach((f, i) => {
+                    const err = validateCondition(f, filterCols);
+                    if (err) errors.push(`Filter ${i + 1}: ${err}`);
+                    else state.filters.push(cleanCondition(f));
+                });
+            }
+        }
+        if ('match' in saved) {
+            if (saved.match === 'any' || saved.match === 'all') state.match = saved.match;
+            else errors.push('Filter matching mode was invalid.');
+        }
+        if ('hidden' in saved) {
+            const e = validateHidden(saved.hidden);
+            if (e.length) errors.push(...e);
+            else state.hidden = new Set(saved.hidden);
+        }
+        if (errors.length) showNotice('Some saved view settings were invalid and were not restored:', errors);
     }
 
     function persist() {
@@ -534,6 +724,9 @@ export function createDataTable(options) {
                 signal: abortCtl.signal,
             });
             if (mine !== reqSeq) return false;
+            if (!res || !Array.isArray(res.rows) || !Number.isFinite(res.total) || res.total < 0) {
+                throw new Error('Invalid response from data source');
+            }
             view.rows = res.rows;
             view.total = res.total;
             view.error = null;
@@ -564,6 +757,7 @@ export function createDataTable(options) {
     }
 
     function commit() {
+        hideNotice();
         persist();
         update();
         opts.onStateChange?.(snapshot());
@@ -600,7 +794,24 @@ export function createDataTable(options) {
     ]);
 
     const toolbar = el('div', {class: 'dt-toolbar'}, [quickForm, tools]);
+    const notice = el('div', {class: 'dt-notice', role: 'alert', hidden: true});
     const chips = el('ul', {class: 'dt-chips', 'aria-label': 'Active filters and sorting', hidden: true});
+
+    function showNotice(title, errors) {
+        notice.replaceChildren(
+            el('div', {class: 'dt-notice__body'}, [
+                el('strong', {}, title),
+                errors.length ? el('ul', {}, errors.map((m) => el('li', {}, m))) : null,
+            ]),
+            iconButton('x', 'Dismiss', hideNotice),
+        );
+        notice.hidden = false;
+    }
+
+    function hideNotice() {
+        notice.hidden = true;
+        notice.replaceChildren();
+    }
 
     const thead = el('thead');
     const tbody = el('tbody');
@@ -625,10 +836,26 @@ export function createDataTable(options) {
         class: 'dt-page-input',
         type: 'number',
         min: '1',
+        step: '1',
         'aria-label': 'Page number',
         inputmode: 'numeric'
     });
     const pageTotal = el('span', {class: 'dt-page-total'});
+
+    const pageErrId = `${uid}-page-err`;
+    const pageError = el('p', {class: 'field-error dt-page-error', id: pageErrId, role: 'alert', hidden: true});
+    const setPageError = (msg) => {
+        pageError.textContent = msg || '';
+        pageError.hidden = !msg;
+        if (msg) {
+            pageInput.setAttribute('aria-invalid', 'true');
+            pageInput.setAttribute('aria-describedby', pageErrId);
+        } else {
+            pageInput.removeAttribute('aria-invalid');
+            pageInput.removeAttribute('aria-describedby');
+        }
+    };
+
     const goTo = (p) => {
         const next = Math.min(Math.max(1, Math.trunc(p) || 1), totalPages());
         if (next === state.page) {
@@ -638,7 +865,18 @@ export function createDataTable(options) {
         state.page = next;
         commit();
     };
-    pageInput.addEventListener('change', () => goTo(Number(pageInput.value)));
+    pageInput.addEventListener('input', () => setPageError(null));
+    pageInput.addEventListener('change', () => {
+        const raw = pageInput.value.trim();
+        const n = Number(raw);
+        const pages = totalPages();
+        if (pageInput.validity.badInput) return setPageError('Page must be a whole number.');
+        if (raw === '') return setPageError('Enter a page number.');
+        if (!Number.isInteger(n)) return setPageError('Page must be a whole number.');
+        if (n < 1 || n > pages) return setPageError(`Page must be between 1 and ${pages}.`);
+        setPageError(null);
+        goTo(n);
+    });
     const pagerBtn = (name, text, onClick) => iconButton(name, text, onClick);
     const btnFirst = pagerBtn('first', 'First page', () => goTo(1));
     const btnPrev = pagerBtn('prev', 'Previous page', () => goTo(state.page - 1));
@@ -651,7 +889,7 @@ export function createDataTable(options) {
     ]);
     const footer = el('div', {class: 'dt-footer'}, [
         el('label', {class: 'dt-size'}, ['Rows per page', sizeSelect]),
-        rangeText, pager,
+        rangeText, pager, pageError,
     ]);
 
     // shared row-action menu
@@ -660,26 +898,24 @@ export function createDataTable(options) {
     let menuClosedAt = 0;
     let menuClosedFor = null;
 
-    root.append(toolbar, chips, scroll, footer, menu);
+    root.append(toolbar, notice, chips, scroll, footer, menu);
     host.replaceChildren(root);
 
     /*  quick search  */
     function drawQuick() {
         quickForm.hidden = !quickDraft;
         if (!quickDraft) return;
-        quickSlot.replaceChildren(buildCondition(quickDraft, quickCols, {label: 'Search'}));
+        quickRow = buildCondition(quickDraft, quickCols, {label: 'Search'});
+        quickSlot.replaceChildren(quickRow);
     }
 
     quickForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (isComplete(quickDraft)) {
-            state.quick = cleanCondition(quickDraft);
-        } else if (state.quick) {
-            state.quick = null; // empty search clears the active quick filter
-        } else {
-            quickSlot.querySelector('.dt-slot--values :is(input, select)')?.focus();
+        if (!quickRow.validate()) {
+            quickRow.querySelector('.dt-slot--values :is(input, select)')?.focus();
             return;
         }
+        state.quick = cleanCondition(quickDraft);
         state.page = 1;
         commit();
     });
@@ -875,6 +1111,7 @@ export function createDataTable(options) {
 
     /*  footer + toolbar badges  */
     function renderFooter() {
+        setPageError(null);
         const {total} = view;
         const start = total ? (state.page - 1) * state.pageSize + 1 : 0;
         const end = Math.min(state.page * state.pageSize, total);
@@ -916,11 +1153,7 @@ export function createDataTable(options) {
         const draft = state.filters.map((f) => ({...f}));
         let match = state.match;
         const list = el('div', {class: 'dt-conds'});
-        const error = el('p', {
-            class: 'field-error',
-            role: 'alert',
-            hidden: true
-        }, 'Complete or remove the highlighted filters.');
+        const error = el('p', {class: 'field-error', role: 'alert', hidden: true});
         const matchRow = el('label', {class: 'dt-match'}, [
             'Show records matching',
             select([['all', 'all filters'], ['any', 'any filter']], match, 'Combine filters', (v) => {
@@ -932,6 +1165,9 @@ export function createDataTable(options) {
         const draw = () => {
             list.replaceChildren(...draft.map((c, i) => buildCondition(c, filterCols, {
                 label: `Filter ${i + 1}`,
+                onTouch: () => {
+                    error.hidden = true;
+                },
                 onRemove: () => {
                     draft.splice(i, 1);
                     draw();
@@ -942,11 +1178,10 @@ export function createDataTable(options) {
             error.hidden = true;
         };
         const add = () => {
-            draft.push({...newCondition(filterCols[0]), _pristine: true});
+            draft.push(newCondition(filterCols[0]));
             draw();
             list.lastElementChild?.querySelector('select')?.focus();
         };
-        if (!draft.length) draft.push({...newCondition(filterCols[0]), _pristine: true});
         draw();
 
         const body = el('div', {class: 'dt-panel'}, [
@@ -962,16 +1197,16 @@ export function createDataTable(options) {
                 draw();
             },
             onApply: () => {
-                const kept = draft.filter((c) => !c._pristine);
-                const badIdx = kept.findIndex((c) => !isComplete(c));
-                if (badIdx >= 0) {
-                    const rows = [...list.children].filter((_, i) => !draft[i]._pristine);
-                    rows.forEach((r, i) => r.classList.toggle('dt-cond--invalid', !isComplete(kept[i])));
-                    rows[badIdx].querySelector('.dt-slot--values :is(input, select)')?.focus();
+                const rows = [...list.children];
+                const results = rows.map((r) => r.validate()); // validate all, so every error shows at once
+                const bad = results.filter((ok) => !ok).length;
+                if (bad) {
+                    error.textContent = bad === 1 ? 'Fix the highlighted filter.' : `Fix the ${bad} highlighted filters.`;
                     error.hidden = false;
+                    rows[results.indexOf(false)].querySelector('.dt-slot--values :is(input, select)')?.focus();
                     return false;
                 }
-                state.filters = kept.map(cleanCondition);
+                state.filters = draft.map(cleanCondition);
                 state.match = match;
                 state.page = 1;
                 commit();
@@ -1074,17 +1309,26 @@ export function createDataTable(options) {
                 return el('label', {class: 'choice-option'}, [box, el('span', {}, col.label)]);
             }),
         ]);
+        const hint = el('p', {class: 'dt-hint'}, 'At least one column must stay visible.');
+        const error = el('p', {class: 'field-error', role: 'alert', hidden: true});
         sync();
 
         openDialog(root, {
-            title: 'Columns', size: 'sm', body: el('div', {class: 'dt-panel'}, [fieldset]),
+            title: 'Columns', size: 'sm', body: el('div', {class: 'dt-panel'}, [fieldset, hint, error]),
             resetLabel: 'Reset to default',
             onReset: () => {
                 draft.clear();
                 columns.filter((c) => c.hidden).forEach((c) => draft.add(c.key));
+                error.hidden = true;
                 sync();
             },
             onApply: () => {
+                const errors = validateHidden([...draft]);
+                if (errors.length) {
+                    error.textContent = errors.join(' ');
+                    error.hidden = false;
+                    return false;
+                }
                 state.hidden = draft;
                 commit();
             },
@@ -1184,15 +1428,40 @@ export function createDataTable(options) {
         },
         refresh: () => update(),
         getState: snapshot,
+        /** Atomic: if any part of the patch is invalid, nothing is applied, the errors are shown and returned. */
         setState(patch = {}) {
-            if (patch.sorts) state.sorts = patch.sorts.filter((s) => colMap.get(s.field)?.sortable);
-            if (patch.filters) state.filters = patch.filters.filter(isComplete).map(cleanCondition);
-            if (patch.match) state.match = patch.match === 'any' ? 'any' : 'all';
-            if ('quick' in patch) state.quick = patch.quick && isComplete(patch.quick) ? cleanCondition(patch.quick) : null;
-            if (patch.pageSize && opts.pageSizes.includes(patch.pageSize)) state.pageSize = patch.pageSize;
-            if (patch.page) state.page = patch.page;
-            if (patch.hidden) state.hidden = new Set(patch.hidden.filter((k) => colMap.get(k)?.hideable));
+            const errors = [];
+            if ('sorts' in patch) errors.push(...validateSorts(patch.sorts));
+            if ('filters' in patch) errors.push(...validateFilters(patch.filters));
+            if ('match' in patch && patch.match !== 'any' && patch.match !== 'all') {
+                errors.push('match must be "all" or "any".');
+            }
+            if (patch.quick) {
+                const err = validateCondition(patch.quick, quickCols);
+                if (err) errors.push(`Search: ${err}`);
+            }
+            if ('pageSize' in patch && !opts.pageSizes.includes(patch.pageSize)) {
+                errors.push(`pageSize must be one of ${opts.pageSizes.join(', ')}.`);
+            }
+            if ('page' in patch && !(Number.isInteger(patch.page) && patch.page >= 1)) {
+                errors.push('page must be a positive integer.');
+            }
+            if ('hidden' in patch) errors.push(...validateHidden(patch.hidden));
+
+            if (errors.length) {
+                showNotice('Could not apply the requested view state:', errors);
+                return {ok: false, errors};
+            }
+
+            if ('sorts' in patch) state.sorts = patch.sorts.map(({field, dir}) => ({field, dir}));
+            if ('filters' in patch) state.filters = patch.filters.map(cleanCondition);
+            if ('match' in patch) state.match = patch.match;
+            if ('quick' in patch) state.quick = patch.quick ? cleanCondition(patch.quick) : null;
+            if ('pageSize' in patch) state.pageSize = patch.pageSize;
+            if ('page' in patch) state.page = patch.page;
+            if ('hidden' in patch) state.hidden = new Set(patch.hidden);
             commit();
+            return {ok: true, errors: []};
         },
         destroy() {
             abortCtl?.abort();
