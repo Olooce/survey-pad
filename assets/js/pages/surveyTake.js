@@ -1,6 +1,7 @@
 import {initApp} from '../common.js';
 import {Store} from '../store.js';
 import {renderQuestionField} from '../inputTypes.js';
+import {createFormValidator} from '../components/formValidation.js';
 
 initApp();
 
@@ -61,34 +62,43 @@ function initTakePage(survey) {
     const fieldsContainer = document.getElementById('take-fields');
     const formEl = document.getElementById('take-form');
     const submitBtn = document.getElementById('take-submit-btn');
-    const answers = {};
+    let answers = {};
+
+    function renderFields() {
+        answers = {};
+        fieldsContainer.replaceChildren(...questions.map((q) => renderQuestionField(q, {
+            value: answers[q.id], onChange: (v) => {
+                answers[q.id] = v;
+            }
+        })));
+    }
 
     if (!questions.length) {
         document.getElementById('take-empty').hidden = false;
         submitBtn.hidden = true;
     } else {
-        questions.forEach((q) => {
-            fieldsContainer.append(renderQuestionField(q, {
-                value: answers[q.id], onChange: (v) => {
-                    answers[q.id] = v;
-                }
-            }));
-        });
+        document.getElementById('take-required-note').hidden = !questions.some((q) => q.required);
+        renderFields();
     }
 
+    const validator = createFormValidator(formEl);
     const successPanel = document.getElementById('success-panel');
+    const successHeading = successPanel.querySelector('h2');
 
     formEl.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (!formEl.reportValidity()) return;
+        if (!validator.validate()) return;
         Store.saveResponse(survey.id, answers);
         formEl.hidden = true;
         successPanel.hidden = false;
+        successHeading.focus();
     });
 
     document.getElementById('submit-another-btn').addEventListener('click', () => {
         successPanel.hidden = true;
         formEl.hidden = false;
-        formEl.reset();
+        validator.clear();
+        renderFields();
+        fieldsContainer.querySelector('input, select, textarea')?.focus();
     });
 }

@@ -77,14 +77,17 @@
     <div class="dialog-body">
         <form class="form" id="survey-form" novalidate>
             <input id="survey-id" type="hidden">
-            <div class="field">
+            <p class="form-note">Fields marked <span aria-hidden="true">*</span> are required.</p>
+            <div class="field" data-required>
                 <label class="field-label" for="survey-title">Title</label>
-                <input id="survey-title" maxlength="120" name="title" required type="text">
+                <input data-error-required="Enter a title for the survey." id="survey-title" maxlength="120"
+                       name="title" required type="text">
             </div>
-            <div class="field">
+            <div class="field" data-required>
                 <label class="field-label" for="survey-slug">Slug <span class="field-hint">(used in the survey link, auto-generated)</span></label>
-                <input id="survey-slug" maxlength="80" name="slug" pattern="[a-z0-9-]+" required type="text">
-                <p class="field-error" hidden id="survey-slug-error">That slug is already in use.</p>
+                <input data-error-pattern="Use only lowercase letters, numbers and hyphens."
+                       data-error-required="Enter a slug. It becomes part of the survey's link." id="survey-slug"
+                       maxlength="80" name="slug" pattern="[a-z0-9-]+" required type="text">
             </div>
             <div class="field">
                 <label class="field-label" for="survey-desc">Description</label>
@@ -167,4 +170,4 @@
 
 <script src="assets/js/pages/surveys.js" type="module"></script>
 </body>
-</html>
+</html>  

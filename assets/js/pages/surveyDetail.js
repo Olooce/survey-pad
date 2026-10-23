@@ -5,6 +5,7 @@ import {defaultOptions, renderQuestionField, typeDef, TYPES} from '../inputTypes
 import {confirmAction} from '../components/confirm.js';
 import {toast} from '../components/toast.js';
 import {createDataTable} from '../components/dataTable.js';
+import {createFormValidator} from '../components/formValidation.js';
 
 initApp();
 
@@ -49,6 +50,7 @@ function initSurveyDetail(survey) {
     const optionsEditor = document.getElementById('options-editor');
     const addOptionBtn = document.getElementById('add-option-btn');
     const submitBtn = document.getElementById('question-submit-btn');
+    const optionsFieldset = form.querySelector('[data-group="options"]');
 
     const GROUP_FLAGS = {
         placeholder: 'hasPlaceholder', rows: 'hasRows', minmax: 'hasMinMax',
@@ -56,6 +58,82 @@ function initSurveyDetail(survey) {
     };
 
     let currentOptions = [];
+
+    const regexFlags = (() => {
+        try {
+            new RegExp('', 'v');
+            return 'v';
+        } catch {
+            return 'u';
+        }
+    })();
+
+    const notBelow = (input, floorInput, floorLabel) => ({
+        target: input,
+        watch: [floorInput],
+        validate: () => {
+            if (input.value === '' || floorInput.value === '') return null;
+            return Number(input.value) < Number(floorInput.value)
+                ? `This can't be less than ${floorLabel} (${floorInput.value}).`
+                : null;
+        },
+    });
+
+    const validator = createFormValidator(form, {
+        rules: [
+            notBelow(maxInput, minInput, 'Min'),
+            notBelow(maxLenInput, minLenInput, 'Min length'),
+            {
+                target: stepInput,
+                validate: () => stepInput.value !== '' && Number(stepInput.value) <= 0
+                    ? 'Enter a step greater than 0, or leave it empty.'
+                    : null,
+            },
+            {
+                target: patternInput,
+                validate: () => {
+                    const pattern = patternInput.value.trim();
+                    if (!pattern) return null;
+                    try {
+                        new RegExp(pattern, regexFlags);
+                        return null;
+                    } catch (err) {
+                        const reason = String(err.message).split(': ').pop();
+                        return `This isn't a valid regular expression (${reason}). Fix it or leave it empty.`;
+                    }
+                },
+            },
+            {
+                target: optionsFieldset,
+                watch: () => [...optionsEditor.querySelectorAll('input')],
+                validate: validateOptions,
+            },
+        ],
+    });
+
+    function validateOptions() {
+        const rows = [...optionsEditor.querySelectorAll('.option-row')];
+        if (!currentOptions.length) return {message: 'Add at least one option.', focus: addOptionBtn};
+        const blank = currentOptions.findIndex((o) => !o.label.trim());
+        if (blank !== -1) {
+            return {
+                message: `Option ${blank + 1} needs a label. Add one or remove the option.`,
+                focus: rows[blank]?.querySelector('[data-option-field="label"]'),
+            };
+        }
+        const seen = new Set();
+        for (const [i, o] of currentOptions.entries()) {
+            const value = (o.value || o.label).trim();
+            if (seen.has(value)) {
+                return {
+                    message: `Options need different values. "${value}" is used more than once.`,
+                    focus: rows[i]?.querySelector('[data-option-field="value"]'),
+                };
+            }
+            seen.add(value);
+        }
+        return null;
+    }
 
     function refreshGroups() {
         const def = typeDef(typeSelect.value);
@@ -68,8 +146,14 @@ function initSurveyDetail(survey) {
     function renderOptionsEditor() {
         optionsEditor.innerHTML = '';
         currentOptions.forEach((opt, i) => {
-            const labelField = el('input', {type: 'text', placeholder: 'Label', value: opt.label});
-            const valueField = el('input', {type: 'text', placeholder: 'Value', value: opt.value});
+            const labelField = el('input', {
+                type: 'text', placeholder: 'Label', value: opt.label,
+                'aria-label': `Option ${i + 1} label`, dataset: {optionField: 'label'},
+            });
+            const valueField = el('input', {
+                type: 'text', placeholder: 'Value', value: opt.value,
+                'aria-label': `Option ${i + 1} value`, dataset: {optionField: 'value'},
+            });
             labelField.addEventListener('input', () => {
                 opt.label = labelField.value;
             });
@@ -77,7 +161,7 @@ function initSurveyDetail(survey) {
                 opt.value = valueField.value;
             });
             const removeBtn = el('button', {
-                class: 'icon-button', type: 'button', 'aria-label': 'Remove option',
+                class: 'icon-button', type: 'button', 'aria-label': `Remove option ${i + 1}`,
                 onClick: () => {
                     currentOptions.splice(i, 1);
                     renderOptionsEditor();
@@ -85,6 +169,7 @@ function initSurveyDetail(survey) {
             }, icon('trash'));
             optionsEditor.append(el('div', {class: 'option-row'}, [labelField, valueField, removeBtn]));
         });
+        validator.recheck();
     }
 
     addOptionBtn.addEventListener('click', () => {
@@ -127,12 +212,8 @@ function initSurveyDetail(survey) {
 
     form.addEventListener('submit', (e) => {
         e.preventDefault();
-        if (!form.reportValidity()) return;
+        if (!validator.validate()) return;
         const def = typeDef(typeSelect.value);
-        if (def.hasOptions && currentOptions.filter((o) => o.label.trim()).length === 0) {
-            alert('Add at least one option.');
-            return;
-        }
         const data = {
             type: typeSelect.value,
             label: labelInput.value.trim(),

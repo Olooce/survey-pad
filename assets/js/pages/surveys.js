@@ -1,9 +1,10 @@
 import {initApp} from '../common.js';
 import {Store} from '../store.js';
-import {el, slugify} from '../utils.js';
+import {el, slugify, uniqueSlug} from '../utils.js';
 import {confirmAction} from '../components/confirm.js';
 import {toast} from '../components/toast.js';
 import {createDataTable} from '../components/dataTable.js';
+import {createFormValidator} from '../components/formValidation.js';
 
 initApp();
 
@@ -13,15 +14,27 @@ const form = document.getElementById('survey-form');
 const idInput = document.getElementById('survey-id');
 const titleInput = document.getElementById('survey-title');
 const slugInput = document.getElementById('survey-slug');
-const slugError = document.getElementById('survey-slug-error');
 const descInput = document.getElementById('survey-desc');
 const submitBtn = document.getElementById('survey-submit-btn');
 
 let slugTouched = false;
 
+const slugTaken = (slug) => Store.isSlugTaken(slug, idInput.value || undefined);
+
+const validator = createFormValidator(form, {
+    rules: [{
+        target: slugInput,
+        watch: [titleInput],
+        validate: () => {
+            const slug = slugify(slugInput.value);
+            if (!slugTaken(slug)) return null;
+            return `Another survey already uses "${slug}". Try "${uniqueSlug(slug, slugTaken)}" instead.`;
+        },
+    }],
+});
+
 function openSurveyDialog(survey) {
     form.reset();
-    slugError.hidden = true;
     slugTouched = !!survey;
     idInput.value = survey?.id || '';
     titleInput.value = survey?.title || '';
@@ -39,19 +52,13 @@ titleInput.addEventListener('input', () => {
 slugInput.addEventListener('input', () => {
     slugTouched = true;
     slugInput.value = slugify(slugInput.value);
-    slugError.hidden = true;
 });
 
 form.addEventListener('submit', (e) => {
     e.preventDefault();
-    if (!form.reportValidity()) return;
+    if (!validator.validate()) return;
     const slug = slugify(slugInput.value);
     const survey = idInput.value ? Store.getSurvey(idInput.value) : null;
-    if (Store.isSlugTaken(slug, survey?.id)) {
-        slugError.hidden = false;
-        slugInput.focus();
-        return;
-    }
     const data = {title: titleInput.value.trim(), slug, description: descInput.value.trim()};
     if (survey) {
         Store.updateSurvey(survey.id, data);

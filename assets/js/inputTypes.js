@@ -1,4 +1,3 @@
-// Registry of every supported question type
 import {el, uid} from './utils.js';
 
 export const TYPES = [
@@ -184,14 +183,27 @@ export function renderQuestionField(question, {
     }, disabled = false
 } = {}) {
     const control = renderControl(question, value, onChange, disabled);
-    const labelNode = el('label', {class: 'field-label', for: fieldId(question)}, question.label);
+    const labelId = `${fieldId(question)}-label`;
+    const helpId = `${fieldId(question)}-help`;
+    const isGroup = control.classList.contains('choice-group');
+    const labelNode = isGroup
+        ? el('span', {class: 'field-label', id: labelId}, question.label)
+        : el('label', {class: 'field-label', id: labelId, for: fieldId(question)}, question.label);
+    if (isGroup) {
+        control.setAttribute('aria-labelledby', labelId);
+        if (question.type === 'checkbox-group') control.setAttribute('role', 'group');
+    }
+    if (question.help) {
+        const inputs = control.matches('input, select, textarea') ? [control] : control.querySelectorAll('input, select, textarea');
+        inputs.forEach((n) => n.setAttribute('aria-describedby', helpId));
+    }
 
     const dataset = {questionId: question.id, type: question.type};
     if (question.required) dataset.required = 'true';
 
     return el('div', {class: 'field', dataset}, [
         labelNode,
-        question.help ? el('p', {class: 'field-help'}, question.help) : null,
+        question.help ? el('p', {class: 'field-help', id: helpId}, question.help) : null,
         control,
     ]);
 }

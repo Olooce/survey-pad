@@ -174,12 +174,27 @@
     border-radius: var(--pill-radius);
     background: var(--color-primary-soft);
     color: var(--color-text);
+    max-width: 100%;
 }
 
-.dt-chip--note {
-    padding-right: 10px;
-    background: transparent;
-    color: var(--color-text-muted);
+.dt-chip__edit {
+    font: inherit;
+    font-size: 0.9em;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 2px 0;
+    text-align: start;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.dt-chip__edit:hover {
+    text-decoration: underline;
+}
+
+.dt-chip__edit strong {
+    font-weight: 600;
 }
 
 /* Table */
