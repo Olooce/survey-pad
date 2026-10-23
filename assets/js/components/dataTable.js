@@ -542,7 +542,7 @@ export function createDataTable(options) {
     function validateFilters(list) {
         if (!Array.isArray(list)) return ['Filters must be a list.'];
         return list.flatMap((f, i) => {
-            const err = validateCondition(f, filterCols);
+            const err = validateCondition(f, quickCols);
             return err ? [`Filter ${i + 1}: ${err}`] : [];
         });
     }
@@ -608,7 +608,7 @@ export function createDataTable(options) {
                 errors.push('Filters must be a list.');
             } else {
                 saved.filters.forEach((f, i) => {
-                    const err = validateCondition(f, filterCols);
+                    const err = validateCondition(f, quickCols);
                     if (err) errors.push(`Filter ${i + 1}: ${err}`);
                     else state.filters.push(cleanCondition(f));
                 });
@@ -997,12 +997,12 @@ export function createDataTable(options) {
         if (!view.rows.length) {
             const filtered = state.quick || state.filters.length;
             tbody.append(el('tr', {}, el('td', {class: 'dt-state', colspan: span}, [
-                el('p', {}, filtered ? 'No records match the current search and filters.' : opts.emptyMessage),
+                el('p', {}, filtered ? 'No records match the current filters.' : opts.emptyMessage),
                 filtered ? el('button', {
                     class: 'btn btn--ghost btn--sm',
                     type: 'button',
-                    onClick: clearAll
-                }, 'Clear search and filters') : null,
+                    onClick: clearFilters
+                }, 'Clear filters') : null,
             ])));
             return;
         }
@@ -1054,41 +1054,42 @@ export function createDataTable(options) {
         return text;
     }
 
+    // The search is ANDed with the filters, which are combined by `match`.
+    function describeFilters() {
+        const parts = state.filters.map(describe);
+        const joiner = state.match === 'any' ? ' or ' : ' and ';
+        let text = parts.join(joiner);
+        if (state.quick) {
+            const grouped = state.match === 'any' && parts.length > 1 ? `(${text})` : text;
+            text = parts.length ? `${describe(state.quick)} and ${grouped}` : describe(state.quick);
+        }
+        return text;
+    }
+
+    function describeSorts() {
+        return state.sorts.map((s) => `${colMap.get(s.field).label} ${s.dir === 'asc' ? 'ascending' : 'descending'}`)
+            .join(', ');
+    }
+
     function renderChips() {
         const items = [];
-        const chip = (text, removeLabel, onRemove, cls = '') => el('li', {class: `dt-chip ${cls}`.trim()}, [
-            el('span', {}, text),
-            iconButton('x', removeLabel, onRemove),
+        const chip = (kind, text, onEdit, clearLabel, onClear) => el('li', {class: 'dt-chip'}, [
+            el('button', {
+                class: 'dt-chip__edit', type: 'button', title: `Edit ${kind.toLowerCase()}`, onClick: onEdit,
+            }, [el('strong', {}, `${kind}:`), ` ${text}`]),
+            iconButton('x', clearLabel, onClear),
         ]);
-        if (state.quick) {
-            items.push(chip(`Search: ${describe(state.quick)}`, 'Remove search', () => {
-                state.quick = null;
-                quickDraft = freshQuick();
-                drawQuick();
+        if (state.quick || state.filters.length) {
+            items.push(chip('Filter', describeFilters(), openFilters, 'Clear filters', clearFilters));
+        }
+        if (state.sorts.length) {
+            items.push(chip('Sort', describeSorts(), openSorting, 'Clear sorting', () => {
+                state.sorts = [];
                 state.page = 1;
                 commit();
             }));
         }
-        if (state.filters.length > 1) {
-            items.push(el('li', {class: 'dt-chip dt-chip--note'}, `Matching ${state.match === 'any' ? 'any' : 'all'} filters`));
-        }
-        state.filters.forEach((f, i) => {
-            items.push(chip(describe(f), `Remove filter ${describe(f)}`, () => {
-                state.filters.splice(i, 1);
-                state.page = 1;
-                commit();
-            }));
-        });
-        state.sorts.forEach((s, i) => {
-            const col = colMap.get(s.field);
-            items.push(chip(`Sort: ${col.label} ${s.dir === 'asc' ? '↑' : '↓'}${state.sorts.length > 1 ? ` (${i + 1})` : ''}`,
-                `Remove sort by ${col.label}`, () => {
-                    state.sorts.splice(i, 1);
-                    state.page = 1;
-                    commit();
-                }, 'dt-chip--sort'));
-        });
-        if (items.length) {
+        if (items.length > 1) {
             items.push(el('li', {}, el('button', {
                 class: 'btn btn--ghost btn--sm',
                 type: 'button',
@@ -1099,12 +1100,23 @@ export function createDataTable(options) {
         chips.hidden = !items.length;
     }
 
-    function clearAll() {
+    function resetQuick() {
         state.quick = null;
-        state.filters = [];
-        state.sorts = [];
         quickDraft = freshQuick();
         drawQuick();
+    }
+
+    function clearFilters() {
+        resetQuick();
+        state.filters = [];
+        state.page = 1;
+        commit();
+    }
+
+    function clearAll() {
+        resetQuick();
+        state.filters = [];
+        state.sorts = [];
         state.page = 1;
         commit();
     }
@@ -1131,7 +1143,7 @@ export function createDataTable(options) {
             toolButtons[id].badge.replaceChildren(String(n), el('span', {class: 'dt-sr'}, ` ${what}`));
             toolButtons[id].badge.hidden = !n;
         };
-        set('filters', state.filters.length, 'active filters');
+        set('filters', state.filters.length + (state.quick ? 1 : 0), 'active filters');
         set('sorting', state.sorts.length, 'active sorts');
         set('columns', state.hidden.size, 'hidden columns');
         toolButtons.filters.btn.disabled = !filterCols.length;
@@ -1150,7 +1162,8 @@ export function createDataTable(options) {
 
     /*  panels  */
     function openFilters() {
-        const draft = state.filters.map((f) => ({...f}));
+        // the active search is listed first; applying turns it into a regular filter
+        const draft = [state.quick, ...state.filters].filter(Boolean).map((f) => ({...f}));
         let match = state.match;
         const list = el('div', {class: 'dt-conds'});
         const error = el('p', {class: 'field-error', role: 'alert', hidden: true});
@@ -1163,7 +1176,7 @@ export function createDataTable(options) {
         const empty = el('p', {class: 'dt-hint'}, 'No filters yet.');
 
         const draw = () => {
-            list.replaceChildren(...draft.map((c, i) => buildCondition(c, filterCols, {
+            list.replaceChildren(...draft.map((c, i) => buildCondition(c, quickCols, {
                 label: `Filter ${i + 1}`,
                 onTouch: () => {
                     error.hidden = true;
@@ -1206,6 +1219,7 @@ export function createDataTable(options) {
                     rows[results.indexOf(false)].querySelector('.dt-slot--values :is(input, select)')?.focus();
                     return false;
                 }
+                resetQuick();
                 state.filters = draft.map(cleanCondition);
                 state.match = match;
                 state.page = 1;

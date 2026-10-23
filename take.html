@@ -61,6 +61,8 @@
             <header class="survey-take-details">
                 <h1 id="take-title"></h1>
                 <p class="page-subtitle" hidden id="take-desc"></p>
+                <p class="form-note" hidden id="take-required-note">Questions marked <span aria-hidden="true">*</span>
+                    are required.</p>
             </header>
 
             <form class="survey-form" id="take-form" novalidate>
@@ -70,7 +72,7 @@
             </form>
 
             <section class="success-panel" hidden id="success-panel">
-                <h2>Thanks for your response!</h2>
+                <h2 tabindex="-1">Thanks for your response!</h2>
                 <p>Your answers have been recorded on this device.</p>
                 <button class="btn btn--ghost" id="submit-another-btn" type="button">Submit another response</button>
             </section>
